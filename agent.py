@@ -17,7 +17,7 @@ checkpoint_timestamp = int(time.time())
 model.save("checkpoints/dqn_ddave_{}".format(checkpoint_timestamp))
 
 # Evaluate the trained model
-model = DQN.load("checkpoints/dqn_ddave".format(checkpoint_timestamp))
+model = DQN.load("checkpoints/dqn_ddave_{}".format(checkpoint_timestamp))
 
 obs = env.reset()
 done = False
