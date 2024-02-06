@@ -1,5 +1,5 @@
-from utils import *
-from helper import *
+from ddave.utils import *
+from ddave.helper import *
 
 '''
 Game processing stuff
