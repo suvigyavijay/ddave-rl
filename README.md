@@ -15,7 +15,7 @@ Dangerous Dave is a challenging side-scrolling platform game where the player co
 
 2. Navigate to the project directory:
     ```bash
-    cd dangerous-dave-rl
+    cd ddave-rl
     ```
 
 3. Install the required dependencies:
@@ -25,14 +25,19 @@ Dangerous Dave is a challenging side-scrolling platform game where the player co
 
 ## Usage
 
-To train the agent, run the following command:
+To test the game, run the following command:
 ```bash
-python train.py
+python ddave/game.py
 ```
 
-To test the trained agent, run:
+To test the environment, run the following command:
 ```bash
-python evaluate.py
+python env.py
+```
+
+To train the reinforcement learning agent, run the following command:
+```bash
+python agent.py
 ```
 
 ## Reinforcement Learning Algorithms
