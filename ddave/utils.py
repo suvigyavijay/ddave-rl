@@ -1,6 +1,7 @@
 from math import floor
 from enum import Enum
 from random import randint, random
+from os import path
 import pygame
 
 '''
@@ -486,7 +487,8 @@ class Map(object):
     
     def buildLevel(self, level_number):
         #open the level in the txt
-        textmap = open("levels/" + str(level_number) + ".txt", 'r')
+        level_loc = path.join(path.dirname(path.abspath(__file__)), "levels/")
+        textmap = open(level_loc + str(level_number) + ".txt", 'r')
 
         #get height (must reset offset)
         self.height = len(textmap.readlines())
