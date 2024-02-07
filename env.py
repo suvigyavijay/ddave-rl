@@ -4,8 +4,16 @@ import pygame
 from ddave.utils import *
 from ddave.helper import *
 import numpy as np
+import configparser
 
-RESCALE_FACTOR = 3*5
+
+# Load config file
+config = configparser.ConfigParser()
+config.read('game.cfg')
+
+RESCALE_FACTOR = int(config['GAME']['RESCALE_FACTOR'])
+END_LEVEL_SCORE = int(config['GAME']['END_LEVEL_SCORE'])
+
 
 class DangerousDaveEnv(gym.Env):
     metadata = {"render_modes": ["human"]}
@@ -103,7 +111,7 @@ class DangerousDaveEnv(gym.Env):
 
         # Return observation, reward, done, info
         # print("Time:", self.episode_clock)
-        return self._get_observation(), self._get_reward(), self.ended_game, self.episode_clock >= 5000, {}
+        return self._get_observation(), self._get_reward(), self.ended_game, self.episode_clock >= 2500, {}
 
     def render(self, mode='human'):
         # Render the game screen
@@ -167,7 +175,7 @@ class DangerousDaveEnv(gym.Env):
         # If the player ended the level, go on to the next
         if self.GamePlayer.getCurrentState() == STATE.ENDMAP:
             self.ended_level = True
-            self.GamePlayer.setScore(self.GamePlayer.getScore() + 5000)
+            self.GamePlayer.setScore(self.GamePlayer.getScore() + END_LEVEL_SCORE)
             return
         # If the player died, spawn death puff and respawn player (if enough lives)
         elif self.GamePlayer.getCurrentState() == STATE.DESTROY:

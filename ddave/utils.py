@@ -3,26 +3,31 @@ from enum import Enum
 from random import randint, random
 from os import path
 import pygame
+import configparser
+
 
 '''
 Constants and enumerations
 '''
+# Load config file
+config = configparser.ConfigParser()
+config.read('game.cfg')
 
-TILE_SCALE_FACTOR = 3
-WIDTH_OF_MAP_NODE = 16
-HEIGHT_OF_MAP_NODE = 16
-TOP_OVERLAY_POS = 12
-BOTTOM_OVERLAY_POS = 166
+# Constants and enumerations
+WIDTH_OF_MAP_NODE = config.getint('GAME', 'WIDTH_OF_MAP_NODE')
+HEIGHT_OF_MAP_NODE = config.getint('GAME', 'HEIGHT_OF_MAP_NODE')
+TOP_OVERLAY_POS = config.getint('GAME', 'TOP_OVERLAY_POS')
+BOTTOM_OVERLAY_POS = config.getint('GAME', 'BOTTOM_OVERLAY_POS')
+ANIMATION_VELOCITY = config.getint('GAME', 'ANIMATION_VELOCITY')
+BOUNDARY_DISTANCE_TRIGGER = config.getint('GAME', 'BOUNDARY_DISTANCE_TRIGGER')
 
-ANIMATION_VELOCITY = 2
+TILE_SCALE_FACTOR = config.getint('GAME', 'TILE_SCALE_FACTOR')
+SCREEN_WIDTH = config.getint('GAME', 'SCREEN_WIDTH') * TILE_SCALE_FACTOR
+SCREEN_HEIGHT = config.getint('GAME', 'SCREEN_HEIGHT') * TILE_SCALE_FACTOR
 
-BOUNDARY_DISTANCE_TRIGGER = 32
-
-SCREEN_WIDTH = 320 * TILE_SCALE_FACTOR
-SCREEN_HEIGHT = 200 * TILE_SCALE_FACTOR
-
-# TODO: Edit this to change the number of levels
-NUM_OF_LEVELS = 1
+NUM_OF_LEVELS = config.getint('GAME', 'NUM_OF_LEVELS')
+ITEM_SCORE = config.getint('GAME', 'ITEM_SCORE')
+TROPHY_SCORE = config.getint('GAME', 'TROPHY_SCORE')
 
 class DIRECTION(Enum):
     LEFT = -1
@@ -540,7 +545,7 @@ class Map(object):
         elif text_tile == "TN":
             return InteractiveScenery("tentacles", randint(0,3), INTSCENERYTYPE.HAZARD)
         elif text_tile == "TR":
-            return Equipment("trophy", 0, 1000)
+            return Equipment("trophy", 0, TROPHY_SCORE)
         elif text_tile == "GU":
             return Equipment("gun", 0, 0)
         elif text_tile == "JE":
@@ -559,7 +564,7 @@ class Map(object):
             return InteractiveScenery("tree", gfx_id, INTSCENERYTYPE.TREE)
         elif text_tile[0] == 'I':
             scores = [50, 100, 150, 200, 300, 500]
-            return Item("items", gfx_id, scores[1])
+            return Item("items", gfx_id, ITEM_SCORE)
         elif text_tile[0] == 'P':
             return Solid("pinkpipe", gfx_id)
         else:
@@ -1368,8 +1373,8 @@ class Player(Dynamic):
         self.score += item.getScore()
         
         #if the player got to a certain score, give one life to him
-        if self.score % 5000 == 0:
-            self.giveLife()
+        # if self.score % 5000 == 0:
+        #     self.giveLife()
 
         level.clearNode(x, y)
 
