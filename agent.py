@@ -1,10 +1,14 @@
-from stable_baselines3 import  DQN
-from stable_baselines3.common.vec_env import DummyVecEnv
+import ray
+from ray.rllib.algorithms.dqn import DQNConfig
+from ray.tune.logger import pretty_print
 from env import DangerousDaveEnv
-import time, os
+import time
+import os
 import argparse
 
 if __name__ == "__main__":
+    ray.init(ignore_reinit_error=True)
+
     argparser = argparse.ArgumentParser()
     argparser.add_argument("--train", action="store_true", help="Train the model")
     argparser.add_argument("--evaluate", action="store_true", help="Evaluate the model")
@@ -17,32 +21,52 @@ if __name__ == "__main__":
         model_name = args.model_name
     else:
         model_name = "dqn_ddave_{}".format(checkpoint_timestamp)
-        
-    # Create the DangerousDaveEnv environment
-    env = DangerousDaveEnv(render_mode="human")
-    env = DummyVecEnv([lambda: env])
 
     if args.train:
-        # Define and train the DQN agent
-        model = DQN("CnnPolicy", env, verbose=1, batch_size=64)
-        model.learn(total_timesteps=50000, progress_bar=True) 
+        # Configure and train the DQN agent using Ray RLLib
+        algo = (
+            DQNConfig()
+            .rollouts(num_rollout_workers=8)
+            .resources(num_gpus=0)
+            .environment(env=DangerousDaveEnv)
+            .training(
+                model=dict(
+                    conv_filters=[[32, [4, 3], 2], [64, [4, 3], 2], [128, [4, 3], 2], [256, [4, 3], 2]],
+                ),
+                train_batch_size=32,
+                gamma=0.99,
+            )
+            # .update_from_dict(
+            #     {
+            #         "replay_buffer_config": {
+            #             "capacity": 1000000,
+            #         },
+            #     }
+            # )
+            .build()
+        )
 
         # Save the trained model if desired
-        model.save("checkpoints/{}".format(model_name))
+        for i in range(10):
+            print("Training iteration: ", i)
+            result = algo.train()
+            print(pretty_print(result))
+        algo.save("checkpoints/{}".format(model_name))
 
-    if args.evaluate and args.model_name:
-        # Evaluate the trained model
-        model = DQN.load("checkpoints/{}".format(model_name))
-    elif args.evaluate:
-        # load latest model
-        files = os.listdir("checkpoints")
-        files.sort(reverse=True)
-        latest_checkpoint = files[0]
-        model = DQN.load("checkpoints/{}".format(latest_checkpoint))
+    if args.evaluate: 
+        env = DangerousDaveEnv()
 
-    obs = env.reset()
-    done = False
-    while not done:
-        action, _states = model.predict(obs)
-        obs, rewards, done, info = env.step(action)
-        env.render()
+        episode_reward = 0
+        terminated = truncated = False
+
+        obs, info = env.reset()
+
+        while not terminated and not truncated:
+            action = algo.compute_single_action(obs)
+            obs, reward, terminated, truncated, info = env.step(action)
+            episode_reward += reward
+            env.render()
+
+        print("Reward: ", episode_reward)
+
+

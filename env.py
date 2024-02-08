@@ -13,6 +13,7 @@ config.read('game.cfg')
 
 RESCALE_FACTOR = int(config['GAME']['RESCALE_FACTOR'])
 END_LEVEL_SCORE = int(config['GAME']['END_LEVEL_SCORE'])
+EPISODE_TIMESTEPS = int(config['GAME']['EPISODE_TIMESTEPS'])
 
 
 class DangerousDaveEnv(gym.Env):
@@ -111,7 +112,7 @@ class DangerousDaveEnv(gym.Env):
 
         # Return observation, reward, done, info
         # print("Time:", self.episode_clock)
-        return self._get_observation(), self._get_reward(), self.ended_game, self.episode_clock >= 2500, {}
+        return self._get_observation(), self._get_reward(), self.ended_game, self.episode_clock >= EPISODE_TIMESTEPS, {}
 
     def render(self, mode='human'):
         # Render the game screen
