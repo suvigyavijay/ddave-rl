@@ -5,6 +5,7 @@ from ddave.utils import *
 from ddave.helper import *
 import numpy as np
 import configparser
+from sklearn.preprocessing import LabelEncoder
 
 
 # Load config file
@@ -18,8 +19,9 @@ END_LEVEL_SCORE = int(config['GAME']['END_LEVEL_SCORE'])
 class DangerousDaveEnv(gym.Env):
     metadata = {"render_modes": ["human"]}
 
-    def __init__(self, render_mode="human"):
+    def __init__(self, render_mode="human",env_rep_type='image'):
         self.render_mode = render_mode
+        self.env_rep_type = env_rep_type
 
         # Initialize pygame
         pygame.init()
@@ -34,8 +36,6 @@ class DangerousDaveEnv(gym.Env):
         self.movement_keys = [pygame.K_UP, pygame.K_LEFT, pygame.K_RIGHT, pygame.K_DOWN]
         self.inv_keys = [pygame.K_LCTRL, pygame.K_RCTRL, pygame.K_LALT, pygame.K_RALT]
 
-        # Define observation space (screen pixels)
-        self.observation_space = spaces.Box(low=0, high=255, shape=(int(SCREEN_WIDTH/RESCALE_FACTOR), int(SCREEN_HEIGHT/RESCALE_FACTOR), 1), dtype=np.uint8)
 
         # Initialize other variables
         self.GamePlayer = Player()
@@ -51,6 +51,16 @@ class DangerousDaveEnv(gym.Env):
         # Build the level
         self.Level = Map(self.current_level_number)
 
+
+        # Define observation space (screen pixels)
+        if self.env_rep_type == 'image':
+            self.observation_space = spaces.Box(low=0, high=255, shape=(int(SCREEN_WIDTH/RESCALE_FACTOR), int(SCREEN_HEIGHT/RESCALE_FACTOR), 1), dtype=np.uint8)
+        elif self.env_rep_type == 'text':
+            box_shape = len(self.Level.node_matrix) * len(self.Level.node_matrix[0])
+            all_possible_labels = ['scenery', 'tree', 'pinkpipe', 'door', 'items', 'trophy', 'player_spawner', 'tunnel', 'solid', 'water', 'tentacles', 'fire',
+                                    'tentacles','gun','jetpack','moonstars','player']
+            self.observation_space = spaces.Box(low=0, high=len(all_possible_labels)-1, shape=(box_shape,1), dtype=np.uint8)
+
         # Initialize screen and player positions
         self.player_position_x, self.player_position_y = self.Level.initPlayerPositions(self.current_spawner_id, self.GamePlayer)
         spawner_pos_x = self.Level.getPlayerSpawnerPosition(self.current_spawner_id)[0]
@@ -65,6 +75,13 @@ class DangerousDaveEnv(gym.Env):
 
         # Level processing controller
         self.ended_level = False
+
+
+        if self.env_rep_type == 'text':
+             self.label_enc  = LabelEncoder()
+             self.label_enc.fit(all_possible_labels)
+             self.unqiue_set = set()
+        
 
 
     def reset(self, **kwargs):
@@ -222,26 +239,46 @@ class DangerousDaveEnv(gym.Env):
             elif not self.ended_game:
                 # Print death puff accordingly to screen shift
                 self.game_screen.printTile(self.player_position_x - self.game_screen.getXPositionInPixelsUnscaled(), self.player_position_y, DeathPuff.getGraphic(self.tileset))
+    
+    def _get_text_representation(self):
 
+        
+        map_text_rep = []
+        for line_index,node_line in enumerate(self.Level.node_matrix):
+            map_text_rep.append(self.label_enc.transform(list(map(lambda x: x.getId(),node_line))))
+        
+        map_text_rep = np.array(map_text_rep,dtype=np.int8)
+        map_text_rep[self.player_position_y//HEIGHT_OF_MAP_NODE,self.player_position_x//WIDTH_OF_MAP_NODE] = self.label_enc.transform(['player'])[0]
+
+        return np.expand_dims(map_text_rep.flatten(),1)
+        
 
     def _get_observation(self):
         # Capture the current game screen
-        game_surface = pygame.display.get_surface()
 
-        game_surface = pygame.transform.scale(game_surface, (int(SCREEN_WIDTH/RESCALE_FACTOR), int(SCREEN_HEIGHT/RESCALE_FACTOR)))
-        # Convert the game surface to a numpy array
-        game_data = pygame.surfarray.array3d(game_surface)
+        if self.env_rep_type == 'image':
+
+            game_surface = pygame.display.get_surface()
+
+            game_surface = pygame.transform.scale(game_surface, (int(SCREEN_WIDTH/RESCALE_FACTOR), int(SCREEN_HEIGHT/RESCALE_FACTOR)))
+            # Convert the game surface to a numpy array
+            game_data = pygame.surfarray.array3d(game_surface)
 
 
-        # Convert the color space from RGB to grayscale if needed
-        game_data = np.dot(game_data[..., :3], [0.299, 0.587, 0.114])
+            # Convert the color space from RGB to grayscale if needed
+            game_data = np.dot(game_data[..., :3], [0.299, 0.587, 0.114])
 
-        # Resize the game data if needed
-        game_data = game_data.reshape((int(SCREEN_WIDTH/RESCALE_FACTOR), int(SCREEN_HEIGHT/RESCALE_FACTOR), 1))
+            # Resize the game data if needed
+            game_data = game_data.reshape((int(SCREEN_WIDTH/RESCALE_FACTOR), int(SCREEN_HEIGHT/RESCALE_FACTOR), 1))
 
-        # Normalize the game data if needed
-        # game_data = game_data / 255.0
-
+            # Normalize the game data if needed
+            # game_data = game_data / 255.0
+        
+    
+        elif self.env_rep_type == 'text':
+            game_data = self._get_text_representation()
+            
+          
         return game_data
 
     def _get_reward(self):
