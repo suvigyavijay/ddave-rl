@@ -1,5 +1,6 @@
 import ray
 from ray.rllib.algorithms.dqn import DQNConfig
+from ray.rllib.algorithms import Algorithm
 from ray.tune.logger import pretty_print
 from env import DangerousDaveEnv
 import time
@@ -22,39 +23,51 @@ if __name__ == "__main__":
     else:
         model_name = "dqn_ddave_{}".format(checkpoint_timestamp)
 
+    # algo = (
+    #     DQNConfig()
+    #     .rollouts(num_rollout_workers=1)
+    #     .resources(num_gpus=0)
+    #     .environment(env=DangerousDaveEnv)
+    #     .training(
+    #         model=dict(
+    #             conv_filters=[[32, [4, 3], 2], [64, [4, 3], 2], [128, [4, 3], 2], [256, [4, 3], 2]],
+    #         ),
+    #         train_batch_size=64,
+    #         gamma=0.99,
+    #     )
+    #     # .update_from_dict(
+    #     #     {
+    #     #         "replay_buffer_config": {
+    #     #             "capacity": 1000000,
+    #     #         },
+    #     #     }
+    #     # )
+    #     .build()
+    # )
+
     if args.train:
         # Configure and train the DQN agent using Ray RLLib
-        algo = (
-            DQNConfig()
-            .rollouts(num_rollout_workers=8)
-            .resources(num_gpus=0)
-            .environment(env=DangerousDaveEnv)
-            .training(
-                model=dict(
-                    conv_filters=[[32, [4, 3], 2], [64, [4, 3], 2], [128, [4, 3], 2], [256, [4, 3], 2]],
-                ),
-                train_batch_size=32,
-                gamma=0.99,
-            )
-            # .update_from_dict(
-            #     {
-            #         "replay_buffer_config": {
-            #             "capacity": 1000000,
-            #         },
-            #     }
-            # )
-            .build()
-        )
 
         # Save the trained model if desired
-        for i in range(10):
+        for i in range(1000):
             print("Training iteration: ", i)
             result = algo.train()
             print(pretty_print(result))
-        algo.save("checkpoints/{}".format(model_name))
+            if i % 10 == 0:
+                algo.save("checkpoints/{}".format(model_name))
+
 
     if args.evaluate: 
         env = DangerousDaveEnv()
+
+        # get the latest checkpoint
+        models = os.listdir("checkpoints/")
+        models.sort(reverse=True)
+        model_name = models[0]
+        print("Loading model: ", model_name)
+        # algo = DQNConfig().environment(DangerousDaveEnv).build()
+        algo = Algorithm.from_checkpoint("checkpoints/{}".format(model_name))
+        algo.reset_config()
 
         episode_reward = 0
         terminated = truncated = False
