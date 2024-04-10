@@ -162,3 +162,11 @@ cython_debug/
 # Model Checkpoints
 *.ckpt
 checkpoints
+
+# Mac specific files
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# runs
+runs/
