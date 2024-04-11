@@ -26,6 +26,7 @@ class DangerousDaveEnv(gym.Env):
         # Initialize pygame
         pygame.init()
         self.game_screen = Screen(SCREEN_WIDTH, SCREEN_HEIGHT)
+      
 
         # Initialize tiles
         self.tileset, self.ui_tileset = load_game_tiles()
@@ -56,10 +57,12 @@ class DangerousDaveEnv(gym.Env):
         if self.env_rep_type == 'image':
             self.observation_space = spaces.Box(low=0, high=255, shape=(int(SCREEN_WIDTH/RESCALE_FACTOR), int(SCREEN_HEIGHT/RESCALE_FACTOR), 1), dtype=np.uint8)
         elif self.env_rep_type == 'text':
-            box_shape = len(self.Level.node_matrix) * len(self.Level.node_matrix[0])
+            box_shape = (1,len(self.Level.node_matrix), len(self.Level.node_matrix[0]))
+            print(box_shape)
             all_possible_labels = ['scenery', 'tree', 'pinkpipe', 'door', 'items', 'trophy', 'player_spawner', 'tunnel', 'solid', 'water', 'tentacles', 'fire',
                                     'tentacles','gun','jetpack','moonstars','player']
-            self.observation_space = spaces.Box(low=0, high=len(all_possible_labels)-1, shape=(box_shape,1), dtype=np.uint8)
+            self.observation_space = spaces.Box(low=0, high=255, shape=box_shape, dtype=np.uint8)
+            print(self.observation_space)
 
         # Initialize screen and player positions
         self.player_position_x, self.player_position_y = self.Level.initPlayerPositions(self.current_spawner_id, self.GamePlayer)
@@ -99,6 +102,8 @@ class DangerousDaveEnv(gym.Env):
 
         # Initialize screen and player positions
         self.player_position_x, self.player_position_y = self.Level.initPlayerPositions(self.current_spawner_id, self.GamePlayer)
+        self.last_player_position_x = self.player_position_x
+        self.last_player_position_y = self.player_position_y
         spawner_pos_x = self.Level.getPlayerSpawnerPosition(self.current_spawner_id)[0]
         self.game_screen.setXPosition(spawner_pos_x - 10, self.Level.getWidth())
 
@@ -111,6 +116,7 @@ class DangerousDaveEnv(gym.Env):
 
         # Level processing controller
         self.ended_level = False
+        
 
         return self._get_observation(), {}
 
@@ -192,6 +198,7 @@ class DangerousDaveEnv(gym.Env):
         # If the player ended the level, go on to the next
         if self.GamePlayer.getCurrentState() == STATE.ENDMAP:
             self.ended_level = True
+            self.ended_game = True
             self.GamePlayer.setScore(self.GamePlayer.getScore() + END_LEVEL_SCORE)
             return
         # If the player died, spawn death puff and respawn player (if enough lives)
@@ -242,20 +249,22 @@ class DangerousDaveEnv(gym.Env):
     
     def _get_text_representation(self):
 
-        
         map_text_rep = []
         for line_index,node_line in enumerate(self.Level.node_matrix):
             map_text_rep.append(self.label_enc.transform(list(map(lambda x: x.getId(),node_line))))
         
-        map_text_rep = np.array(map_text_rep,dtype=np.int8)
-        map_text_rep[self.player_position_y//HEIGHT_OF_MAP_NODE,self.player_position_x//WIDTH_OF_MAP_NODE] = self.label_enc.transform(['player'])[0]
-
-        return np.expand_dims(map_text_rep.flatten(),1)
+        map_text_rep = np.array(map_text_rep,dtype=np.uint8)
+        try:
+            map_text_rep[int(self.player_position_y//HEIGHT_OF_MAP_NODE),int(self.player_position_x//WIDTH_OF_MAP_NODE)] = self.label_enc.transform(['player'])[0]
+        except Exception as e:
+          
+            map_text_rep[0,0] = self.label_enc.transform(['player'])[0]
+        
+        return np.expand_dims(map_text_rep,0)
         
 
     def _get_observation(self):
         # Capture the current game screen
-
         if self.env_rep_type == 'image':
 
             game_surface = pygame.display.get_surface()
@@ -277,8 +286,7 @@ class DangerousDaveEnv(gym.Env):
     
         elif self.env_rep_type == 'text':
             game_data = self._get_text_representation()
-            
-          
+       
         return game_data
 
     def _get_reward(self):
@@ -286,6 +294,13 @@ class DangerousDaveEnv(gym.Env):
         # This can be customized based on the game's reward structure
         reward = self.GamePlayer.getScore() - self.current_score
         self.current_score = self.GamePlayer.getScore()
+    
+        if reward == 0:
+            reward = -1
+    
+        if (self.last_player_position_x == self.player_position_x) and (self.last_player_position_y==self.player_position_y) and (reward==-1):
+            reward = -2
+
         return reward
 
 # Test the environment

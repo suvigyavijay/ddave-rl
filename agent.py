@@ -1,9 +1,15 @@
 from stable_baselines3 import  DQN
-from stable_baselines3.common.vec_env import DummyVecEnv
+from stable_baselines3.common.vec_env import DummyVecEnv,VecNormalize
+from stable_baselines3.common.env_checker import check_env
 from env import DangerousDaveEnv
 import time, os
 import argparse
-from RnD.agents import RNDAgent
+from custom_cnn import policy_kwargs
+import torch
+device = "mps" if torch.backends.mps.is_available() else "cpu"
+device = torch.device(device)
+
+
 
 if __name__ == "__main__":
     argparser = argparse.ArgumentParser()
@@ -12,7 +18,9 @@ if __name__ == "__main__":
     argparser.add_argument("--model-name", action="store", help="Load the latest model")
     argparser.add_argument('--env-rep-type', choices=['text', 'image'])
     argparser.add_argument('--model-type', choices=['DQN','RND'])
+    argparser.add_argument("--retrain", action="store_true", help="Train existing model")
     args = argparser.parse_args()
+    print(args)
     
     checkpoint_timestamp = int(time.time())
 
@@ -27,33 +35,32 @@ if __name__ == "__main__":
         env_rep_type = 'image' 
     
     if args.model_type:
-        model_type = 'DQN'
-    else:
         model_type = args.model_type
+    else:
+        model_type = 'DQN'
     
-  
     # Create the DangerousDaveEnv environment
     env = DangerousDaveEnv(render_mode="human",env_rep_type=env_rep_type)
-    env = DummyVecEnv([lambda: env])
+    # env = DummyVecEnv([lambda: env])
 
-
-    if model_type == 'DQN':
+    if model_type == 'DQN' :
 
         if args.train:
             # Define and train the DQN agent
-    
-            if env_rep_type == 'image':
-                model = DQN("CnnPolicy", env, verbose=1, batch_size=64)
 
-            elif env_rep_type == 'text':
-                model = DQN("MlpPolicy", env, verbose=1, batch_size=64)
+            if args.retrain and args.model_name:
+                model = DQN.load("checkpoints/{}".format(model_name))
+                model.set_env(env)
+            else:
+                model = DQN("CnnPolicy", env, verbose=1, batch_size=256,policy_kwargs=policy_kwargs,
+                            learning_starts=1000,exploration_fraction=0.5,exploration_final_eps=0.01,device=device,
+                            target_update_interval=5000,  buffer_size=100000)
 
-            model.learn(total_timesteps=50, progress_bar=True)
-            print(env.envs[0].unqiue_set) 
-
+            model.learn(total_timesteps=500000, progress_bar=True)
+            
             # Save the trained model if desired
             model.save("checkpoints/{}".format(model_name))
-            
+        
 
         if args.evaluate and args.model_name:
             # Evaluate the trained model
@@ -65,9 +72,9 @@ if __name__ == "__main__":
             latest_checkpoint = files[0]
             model = DQN.load("checkpoints/{}".format(latest_checkpoint))
 
-    obs = env.reset()
+    obs,info = env.reset()
     done = False
     while not done:
         action, _states = model.predict(obs)
-        obs, rewards, done, info = env.step(action)
+        obs, rewards, terminated,truncated,info = env.step(action)
         env.render()
