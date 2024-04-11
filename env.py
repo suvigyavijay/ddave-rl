@@ -57,7 +57,7 @@ class DangerousDaveEnv(gym.Env):
         if self.env_rep_type == 'image':
             self.observation_space = spaces.Box(low=0, high=255, shape=(int(SCREEN_WIDTH/RESCALE_FACTOR), int(SCREEN_HEIGHT/RESCALE_FACTOR), 1), dtype=np.uint8)
         elif self.env_rep_type == 'text':
-            box_shape = (1,len(self.Level.node_matrix), len(self.Level.node_matrix[0]))
+            box_shape = (1,len(self.Level.node_matrix), len(self.Level.node_matrix[0][:19]))
             print(box_shape)
             all_possible_labels = ['scenery', 'tree', 'pinkpipe', 'door', 'items', 'trophy', 'player_spawner', 'tunnel', 'solid', 'water', 'tentacles', 'fire',
                                     'tentacles','gun','jetpack','moonstars','player']
@@ -134,7 +134,7 @@ class DangerousDaveEnv(gym.Env):
 
         # Return observation, reward, done, info
         # print("Time:", self.episode_clock)
-        return self._get_observation(), self._get_reward(), self.ended_game, self.episode_clock >= 2500, {}
+        return self._get_observation(), self._get_reward(), self.ended_game, self.episode_clock >= 1500, {}
 
     def render(self, mode='human'):
         # Render the game screen
@@ -248,18 +248,16 @@ class DangerousDaveEnv(gym.Env):
                 self.game_screen.printTile(self.player_position_x - self.game_screen.getXPositionInPixelsUnscaled(), self.player_position_y, DeathPuff.getGraphic(self.tileset))
     
     def _get_text_representation(self):
-
+       
         map_text_rep = []
         for line_index,node_line in enumerate(self.Level.node_matrix):
-            map_text_rep.append(self.label_enc.transform(list(map(lambda x: x.getId(),node_line))))
+            map_text_rep.append(self.label_enc.transform(list(map(lambda x: x.getId(),node_line[:19]))))
         
         map_text_rep = np.array(map_text_rep,dtype=np.uint8)
         try:
             map_text_rep[int(self.player_position_y//HEIGHT_OF_MAP_NODE),int(self.player_position_x//WIDTH_OF_MAP_NODE)] = self.label_enc.transform(['player'])[0]
         except Exception as e:
-          
             map_text_rep[0,0] = self.label_enc.transform(['player'])[0]
-        
         return np.expand_dims(map_text_rep,0)
         
 
@@ -305,7 +303,7 @@ class DangerousDaveEnv(gym.Env):
 
 # Test the environment
 if __name__ == '__main__':
-    env = DangerousDaveEnv()
+    env = DangerousDaveEnv(env_rep_type='text')
     obs = env.reset()
     for i in range(1000):
         action = env.action_space.sample()

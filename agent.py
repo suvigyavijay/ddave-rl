@@ -1,4 +1,4 @@
-from stable_baselines3 import  DQN
+from stable_baselines3 import  DQN,PPO
 from stable_baselines3.common.vec_env import DummyVecEnv,VecNormalize
 from stable_baselines3.common.env_checker import check_env
 from env import DangerousDaveEnv
@@ -17,7 +17,7 @@ if __name__ == "__main__":
     argparser.add_argument("--evaluate", action="store_true", help="Evaluate the model")
     argparser.add_argument("--model-name", action="store", help="Load the latest model")
     argparser.add_argument('--env-rep-type', choices=['text', 'image'])
-    argparser.add_argument('--model-type', choices=['DQN','RND'])
+    argparser.add_argument('--model-type', choices=['DQN','RND','PPO'])
     argparser.add_argument("--retrain", action="store_true", help="Train existing model")
     args = argparser.parse_args()
     print(args)
@@ -65,16 +65,46 @@ if __name__ == "__main__":
         if args.evaluate and args.model_name:
             # Evaluate the trained model
             model = DQN.load("checkpoints/{}".format(model_name))
+        
         elif args.evaluate:
             # load latest model
             files = os.listdir("checkpoints")
             files.sort(reverse=True)
             latest_checkpoint = files[0]
             model = DQN.load("checkpoints/{}".format(latest_checkpoint))
+        
+    elif model_type=='PPO':
+        if args.train:
+            # Define and train the DQN agent
 
-    obs,info = env.reset()
-    done = False
-    while not done:
-        action, _states = model.predict(obs)
-        obs, rewards, terminated,truncated,info = env.step(action)
-        env.render()
+            if args.retrain and args.model_name:
+                model = PPO.load("checkpoints/{}".format(model_name))
+                model.set_env(env)
+            else:
+                model = PPO("CnnPolicy", env, verbose=1, batch_size=256,policy_kwargs=policy_kwargs,
+                            device=device)
+
+            model.learn(total_timesteps=100000, progress_bar=True)
+            
+            # Save the trained model if desired
+            model.save("checkpoints/{}".format(model_name))
+        
+
+        if args.evaluate and args.model_name:
+            # Evaluate the trained model
+            model = PPO.load("checkpoints/{}".format(model_name))
+        elif args.evaluate:
+            # load latest model
+            files = os.listdir("checkpoints")
+            files.sort(reverse=True)
+            latest_checkpoint = files[0]
+            model = PPO.load("checkpoints/{}".format(latest_checkpoint))
+
+    if args.evaluate:
+        obs,info = env.reset()
+        terminated = False
+        truncated = False
+        while not (terminated or truncated):
+            action, info = model.predict(obs)
+            obs, rewards, terminated,truncated,info = env.step(action)
+            env.render()
