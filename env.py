@@ -19,14 +19,14 @@ END_LEVEL_SCORE = int(config['GAME']['END_LEVEL_SCORE'])
 class DangerousDaveEnv(gym.Env):
     metadata = {"render_modes": ["human"]}
 
-    def __init__(self, render_mode="human",env_rep_type='image'):
+    def __init__(self, render_mode="human",env_rep_type='image',random_respawn=False):
         self.render_mode = render_mode
         self.env_rep_type = env_rep_type
 
         # Initialize pygame
         pygame.init()
         self.game_screen = Screen(SCREEN_WIDTH, SCREEN_HEIGHT)
-      
+        self.random_respawn = random_respawn
 
         # Initialize tiles
         self.tileset, self.ui_tileset = load_game_tiles()
@@ -89,6 +89,8 @@ class DangerousDaveEnv(gym.Env):
 
     def reset(self, **kwargs):
         # Reset player, level, and game state
+
+
         self.GamePlayer = Player()
         self.current_level_number = 1
         self.current_spawner_id = 0
@@ -101,11 +103,31 @@ class DangerousDaveEnv(gym.Env):
         self.Level = Map(self.current_level_number)
 
         # Initialize screen and player positions
-        self.player_position_x, self.player_position_y = self.Level.initPlayerPositions(self.current_spawner_id, self.GamePlayer)
-        self.last_player_position_x = self.player_position_x
-        self.last_player_position_y = self.player_position_y
-        spawner_pos_x = self.Level.getPlayerSpawnerPosition(self.current_spawner_id)[0]
-        self.game_screen.setXPosition(spawner_pos_x - 10, self.Level.getWidth())
+
+        if not self.random_respawn:
+            self.player_position_x, self.player_position_y = self.Level.initPlayerPositions(self.current_spawner_id, self.GamePlayer)
+            self.last_player_position_x = self.player_position_x
+            self.last_player_position_y = self.player_position_y
+            spawner_pos_x = self.Level.getPlayerSpawnerPosition(self.current_spawner_id)[0]
+            self.game_screen.setXPosition(spawner_pos_x - 10, self.Level.getWidth())
+        else:
+            while True:
+                y = np.random.randint(1,11)
+                x = np.random.randint(1,19)
+                if self.Level.node_matrix[y][x].getId() == "scenery":
+                    spawner_pos_x = x
+                    spawner_pos_y = y 
+                    break
+            
+            self.GamePlayer.setCurrentState(STATE.BLINK)
+            self.GamePlayer.setDirectionX(DIRECTION.IDLE)
+            self.player_position_x = WIDTH_OF_MAP_NODE * spawner_pos_x
+            self.player_position_y = HEIGHT_OF_MAP_NODE * spawner_pos_y
+            
+            self.last_player_position_x = self.player_position_x
+            self.last_player_position_y = self.player_position_y
+            self.game_screen.setXPosition(spawner_pos_x - 10, self.Level.getWidth())
+
 
         # UI Inits
         self.score_ui = 0  # Initial score. Every time it changes, update the UI
@@ -303,13 +325,14 @@ class DangerousDaveEnv(gym.Env):
 
 # Test the environment
 if __name__ == '__main__':
-    env = DangerousDaveEnv(env_rep_type='text')
-    obs = env.reset()
-    for i in range(1000):
-        action = env.action_space.sample()
-        obs, reward, done, truncated, info = env.step(action)
-        env.render()
-        if done:
-            print("Episode finished after {} timesteps".format(i+1))
-            break
-    env.close()
+    for i in range(100):
+        env = DangerousDaveEnv(env_rep_type='text',random_respawn=True)
+        obs,info = env.reset()
+        for i in range(500):
+            action = env.action_space.sample()
+            obs, reward, done, truncated, info = env.step(action)
+            env.render()
+            if done:
+                print("Episode finished after {} timesteps".format(i+1))
+                break
+        env.close()
