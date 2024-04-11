@@ -23,9 +23,9 @@ class CustomCNN(BaseFeaturesExtractor):
         self.pool = nn.MaxPool2d(kernel_size=(1, 1), stride=2)  # Output size: (16, 5, 50)
         self.conv2 = nn.Conv2d(16, 32, kernel_size=(2, 2), stride=1, padding=1)  # Output size: (32, 5, 50)
         # After another pooling layer, the size would be (32, 2, 25)
-        self.conv3 = nn.Conv2d(32, 64, kernel_size=(2, 2), stride=1, padding=1)  # Output size: (64, 2, 25) - No padding
+        self.conv3 = nn.Conv2d(32, 64, kernel_size=(1, 1), stride=1, padding=1)  # Output size: (64, 2, 25) - No padding
         # Flattening the output for the fully connected layer
-        self.fc1 = nn.Linear(19712, 1024)
+        self.fc1 = nn.Linear(22080, 1024)
         self.fc2 = nn.Linear(1024, features_dim)  # Fully connected layer to output 128 features
 
     def forward(self, x: th.Tensor) -> th.Tensor:
@@ -34,7 +34,7 @@ class CustomCNN(BaseFeaturesExtractor):
         x = th.relu(self.conv3(x))
         
         # Flatten the output for dense layer
-        x = x.view(-1, 19712)
+        x = x.view(-1, 22080)
         x = self.fc1(x)
         x = th.relu(self.fc2(x))
         return x
