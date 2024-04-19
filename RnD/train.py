@@ -22,27 +22,20 @@ def main():
     env_type = default_config['EnvType']
 
    
-    if env_type == 'atari':
-        env = gym.make(env_id)
-    elif env_type =='ddave':
-        env = DangerousDaveEnv(render_mode='human',env_rep_type='image')
-    else:
-        raise NotImplementedError
-    
-    input_size = env.observation_space.shape  # 4
-    output_size = env.action_space.n  # 2
+    env = DangerousDaveEnv(render_mode='human',env_rep_type='text',random_respawn=False)
 
-    if 'Breakout' in env_id:
-        output_size -= 1
+    input_size = env.observation_space.shape 
+    output_size = env.action_space.n  
 
-    # env.close()
-
+   
     is_load_model = False
     is_render = False
     model_path = 'models/{}.model'.format(env_id)
     predictor_path = 'models/{}.pred'.format(env_id)
     target_path = 'models/{}.target'.format(env_id)
-
+    if not os.path.exists('models/'):
+        os.makedirs('models/',exist_ok=True)
+    
     writer = SummaryWriter()
 
     use_cuda = default_config.get('UseGPU')
@@ -71,22 +64,15 @@ def main():
     life_done = default_config.get('LifeDone')
 
     reward_rms = RunningMeanStd()
-    obs_rms = RunningMeanStd(shape=(1, 1, 84, 84))
+    obs_rms = RunningMeanStd(shape=(1, 1, 11, 19))
     pre_obs_norm_step = int(default_config['ObsNormStep'])
     discounted_reward = RewardForwardFilter(int_gamma)
   
     agent = RNDAgent
-
-    if default_config['EnvType'] == 'atari':
-        env_type = AtariEnvironment
-    elif default_config['EnvType'] == 'ddave':
-        env_type = DaveEnvironment
+    env_type = DaveEnvironment
 
 
-    else:
-        raise NotImplementedError
-    
-    input_size = (84,84)
+    input_size = (1,11,19)
     agent = agent(
         input_size,
         output_size,
@@ -117,21 +103,13 @@ def main():
             agent.rnd.target.load_state_dict(torch.load(target_path, map_location='cpu'))
         print('load finished!')
 
-    # works = []
-    # parent_conns = []
-    # child_conns = []
-    # for idx in range(num_worker):
-    #     parent_conn, child_conn = Pipe()
-    #     work  = env_type(env_id=env_id,is_render=is_render,env_idx=idx,env=env,child_conn=child_conn,sticky_action=sticky_action,p=action_prob,
-    #                      life_done=life_done)
-    #     work.start()
-    #     works.append(work)
-    #     parent_conns.append(parent_conn)
-    #     child_conns.append(child_conn)
-    
-    final_env = env_type(env_id=env_id,is_render=is_render,env_idx=0,env=env,sticky_action=sticky_action,p=action_prob,
-                         life_done=life_done)
-    states = np.zeros([4, 84, 84])
+
+
+
+    final_env = DaveEnvironment(env_id=env_id,is_render=is_render,env_idx=0,env=env,sticky_action=sticky_action,p=action_prob,
+                         life_done=life_done,h=11,w=19)
+   
+    states = np.zeros([4, 1, 11,19])
 
     sample_episode = 0
     sample_rall = 0
@@ -145,10 +123,12 @@ def main():
     print('Start to initailize observation normalization parameter.....')
     next_obs = []
 
+
     for step in range(num_step * pre_obs_norm_step):
         action = np.random.randint(0, output_size)
         s, r, d, rd, lr = final_env.run(action)
-        next_obs.append(s[3, :, :].reshape([1, 84, 84]))
+       
+        next_obs.append(s[3, :, :,:].reshape([1, 11,19]))
 
         if len(next_obs) % (num_step * num_worker) == 0:
             next_obs = np.stack(next_obs)
@@ -161,36 +141,33 @@ def main():
             [], [], [], [], [], [], [], [], [], [], []
         global_step += (num_worker * num_step)
         global_update += 1
-        import pdb
-        pdb.set_trace()
         # Step 1. n-step rollout
         for _ in range(num_step):
-            actions, value_ext, value_int, policy = agent.get_action(np.float32(states) / 255.)
-            import pdb
-            pdb.set_trace()
-
-            for parent_conn, action in zip(parent_conns, actions):
-                parent_conn.send(action)
-
+            actions, value_ext, value_int, policy = agent.get_action(np.float32(states))
+        
             next_states, rewards, dones, real_dones, log_rewards, next_obs = [], [], [], [], [], []
-            for parent_conn in parent_conns:
-                s, r, d, rd, lr = parent_conn.recv()
-                next_states.append(s)
+         
+            for action in actions:
+                s, r, d, rd, lr = final_env.run(action)
+                next_states.append(s[3, :, :,:].reshape([1, 11, 19]))
                 rewards.append(r)
                 dones.append(d)
                 real_dones.append(rd)
                 log_rewards.append(lr)
-                next_obs.append(s[3, :, :].reshape([1, 84, 84]))
+                next_obs.append(s[3, :, :,:].reshape([1, 11, 19]))
 
+    
             next_states = np.stack(next_states)
             rewards = np.hstack(rewards)
             dones = np.hstack(dones)
             real_dones = np.hstack(real_dones)
             next_obs = np.stack(next_obs)
 
+         
             # total reward = int reward + ext Reward
             intrinsic_reward = agent.compute_intrinsic_reward(
                 ((next_obs - obs_rms.mean) / np.sqrt(obs_rms.var)).clip(-5, 5))
+            
             intrinsic_reward = np.hstack(intrinsic_reward)
             sample_i_rall += intrinsic_reward[sample_env_idx]
 
@@ -205,7 +182,7 @@ def main():
             total_policy.append(policy)
             total_policy_np.append(policy.cpu().numpy())
 
-            states = next_states[:, :, :, :]
+            states = next_obs
 
             sample_rall += log_rewards[sample_env_idx]
 
@@ -219,17 +196,18 @@ def main():
                 sample_step = 0
                 sample_i_rall = 0
 
+
         # calculate last next value
-        _, value_ext, value_int, _ = agent.get_action(np.float32(states) / 255.)
+        _, value_ext, value_int, _ = agent.get_action(np.float32(states))
         total_ext_values.append(value_ext)
         total_int_values.append(value_int)
         # --------------------------------------------------
-
-        total_state = np.stack(total_state).transpose([1, 0, 2, 3, 4]).reshape([-1, 4, 84, 84])
-        total_reward = np.stack(total_reward).transpose().clip(-1, 1)
+        
+        total_state = np.stack(total_state).transpose([1, 0, 2, 3, 4]).reshape([-1, 1, 11, 19])
+        total_reward = np.stack(total_reward).transpose()
         total_action = np.stack(total_action).transpose().reshape([-1])
         total_done = np.stack(total_done).transpose()
-        total_next_obs = np.stack(total_next_obs).transpose([1, 0, 2, 3, 4]).reshape([-1, 1, 84, 84])
+        total_next_obs = np.stack(total_next_obs).transpose([1, 0, 2, 3, 4]).reshape([-1, 1, 11, 19])
         total_ext_values = np.stack(total_ext_values).transpose()
         total_int_values = np.stack(total_int_values).transpose()
         total_logging_policy = np.vstack(total_policy_np)
@@ -278,9 +256,11 @@ def main():
         # -----------------------------------------------
 
         # Step 5. Training!
-        agent.train_model(np.float32(total_state) / 255., ext_target, int_target, total_action,
+        agent.train_model(np.float32(total_state), ext_target, int_target, total_action,
                           total_adv, ((total_next_obs - obs_rms.mean) / np.sqrt(obs_rms.var)).clip(-5, 5),
                           total_policy)
+
+        print(np.mean(total_reward))
 
         if global_step % (num_worker * num_step * 100) == 0:
             print('Now Global Step :{}'.format(global_step))

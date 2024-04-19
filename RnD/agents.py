@@ -30,6 +30,7 @@ class RNDAgent(object):
             use_gae=True,
             use_cuda=False,
             use_noisy_net=False):
+        
         self.model = CnnActorCriticNetwork(input_size, output_size, use_noisy_net)
         self.num_env = num_env
         self.output_size = output_size
@@ -60,7 +61,6 @@ class RNDAgent(object):
         action_prob = F.softmax(policy, dim=-1).data.cpu().numpy()
 
         action = self.random_choice_prob_index(action_prob)
-
         return action, value_ext.data.cpu().numpy().squeeze(), value_int.data.cpu().numpy().squeeze(), policy.detach()
 
     @staticmethod
@@ -71,13 +71,13 @@ class RNDAgent(object):
     def compute_intrinsic_reward(self, next_obs):
         next_obs = torch.FloatTensor(next_obs).to(self.device)
 
-        target_next_feature = self.rnd.target(next_obs)
-        predict_next_feature = self.rnd.predictor(next_obs)
+        predict_next_feature,target_next_feature = self.rnd(next_obs)
         intrinsic_reward = (target_next_feature - predict_next_feature).pow(2).sum(1) / 2
 
         return intrinsic_reward.data.cpu().numpy()
 
     def train_model(self, s_batch, target_ext_batch, target_int_batch, y_batch, adv_batch, next_obs_batch, old_policy):
+        
         s_batch = torch.FloatTensor(s_batch).to(self.device)
         target_ext_batch = torch.FloatTensor(target_ext_batch).to(self.device)
         target_int_batch = torch.FloatTensor(target_int_batch).to(self.device)
@@ -111,7 +111,7 @@ class RNDAgent(object):
                 mask = (mask < self.update_proportion).type(torch.FloatTensor).to(self.device)
                 forward_loss = (forward_loss * mask).sum() / torch.max(mask.sum(), torch.Tensor([1]).to(self.device))
                 # ---------------------------------------------------------------------------------
-
+        
                 policy, value_ext, value_int = self.model(s_batch[sample_idx])
                 m = Categorical(F.softmax(policy, dim=-1))
                 log_prob = m.log_prob(y_batch[sample_idx])

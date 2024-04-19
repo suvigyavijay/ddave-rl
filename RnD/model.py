@@ -83,27 +83,26 @@ class CnnActorCriticNetwork(nn.Module):
 
         self.feature = nn.Sequential(
             nn.Conv2d(
-                in_channels=4,
+                in_channels=1,
                 out_channels=32,
-                kernel_size=3,
-                stride=2,
+                kernel_size=2,
                 padding=1),
             nn.ReLU(),
             nn.Conv2d(
                 in_channels=32,
                 out_channels=64,
-                kernel_size=4,
-                stride=2),
+                kernel_size=1,
+                stride=1),
             nn.ReLU(),
             nn.Conv2d(
                 in_channels=64,
                 out_channels=64,
-                kernel_size=3,
+                kernel_size=1,
                 stride=1),
             nn.ReLU(),
             Flatten(),
             linear(
-                64*18*18,
+                15360,
                 256),
             nn.ReLU(),
             linear(
@@ -166,24 +165,24 @@ class RNDModel(nn.Module):
         self.input_size = input_size
         self.output_size = output_size
 
-        feature_output = 7 * 7 * 64
+        feature_output = 11520
         self.predictor = nn.Sequential(
             nn.Conv2d(
                 in_channels=1,
                 out_channels=32,
-                kernel_size=8,
-                stride=4),
+                kernel_size=2,
+                stride=1),
             nn.LeakyReLU(),
             nn.Conv2d(
                 in_channels=32,
                 out_channels=64,
-                kernel_size=4,
-                stride=2),
+                kernel_size=1,
+                stride=1),
             nn.LeakyReLU(),
             nn.Conv2d(
                 in_channels=64,
                 out_channels=64,
-                kernel_size=3,
+                kernel_size=1,
                 stride=1),
             nn.LeakyReLU(),
             Flatten(),
@@ -198,19 +197,19 @@ class RNDModel(nn.Module):
             nn.Conv2d(
                 in_channels=1,
                 out_channels=32,
-                kernel_size=8,
-                stride=4),
+                kernel_size=2,
+                stride=1),
             nn.LeakyReLU(),
             nn.Conv2d(
                 in_channels=32,
                 out_channels=64,
-                kernel_size=4,
-                stride=2),
+                kernel_size=1,
+                stride=1),
             nn.LeakyReLU(),
             nn.Conv2d(
                 in_channels=64,
                 out_channels=64,
-                kernel_size=3,
+                kernel_size=1,
                 stride=1),
             nn.LeakyReLU(),
             Flatten(),
@@ -230,6 +229,7 @@ class RNDModel(nn.Module):
             param.requires_grad = False
 
     def forward(self, next_obs):
+   
         target_feature = self.target(next_obs)
         predict_feature = self.predictor(next_obs)
 
