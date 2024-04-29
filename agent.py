@@ -27,8 +27,8 @@ if __name__ == "__main__":
 
     if args.train:
         # Define and train the DQN agent
-        model = model_func("CnnPolicy", env, verbose=1, batch_size=64, device="mps")
-        model.learn(total_timesteps=100000, progress_bar=True) 
+        model = model_func("CnnPolicy", env, verbose=1, batch_size=64)
+        model.learn(total_timesteps=10000, progress_bar=True) 
 
         # Save the trained model if desired
         model.save("checkpoints/{}".format(model_name))

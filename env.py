@@ -29,7 +29,7 @@ class DangerousDaveEnv(gym.Env):
         self.tileset, self.ui_tileset = load_game_tiles()
 
         # Define action space (movement keys)
-        self.action_space = spaces.Discrete(5)  # Up, Left, Right, Down, NoOp
+        self.action_space = spaces.Discrete(4)  # Up, Left, Right, Down
 
         self.movement_keys = [pygame.K_UP, pygame.K_LEFT, pygame.K_RIGHT, pygame.K_DOWN]
         self.inv_keys = [pygame.K_LCTRL, pygame.K_RCTRL, pygame.K_LALT, pygame.K_RALT]
@@ -99,7 +99,7 @@ class DangerousDaveEnv(gym.Env):
 
     def step(self, action, sticky=True):
         # Convert action into player movement
-        key_map = [0, 0, 0, 0, 0]
+        key_map = [0, 0, 0, 0]
         key_map[action] = 1
         self.GamePlayer.movementInput(key_map)
 
@@ -167,7 +167,7 @@ class DangerousDaveEnv(gym.Env):
         
         # Get keys (movement)
         pressed_keys = pygame.key.get_pressed()
-        key_map = [0, 0, 0, 0, 0]
+        key_map = [0, 0, 0, 0]
         for i, key in enumerate(self.movement_keys):
             if pressed_keys[key]:
                 key_map[i] = 1
