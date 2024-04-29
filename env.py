@@ -29,7 +29,7 @@ class DangerousDaveEnv(gym.Env):
         self.tileset, self.ui_tileset = load_game_tiles()
 
         # Define action space (movement keys)
-        self.action_space = spaces.Discrete(4)  # Up, Left, Right, Down
+        self.action_space = spaces.Discrete(5)  # Up, Left, Right, Down, NoOp
 
         self.movement_keys = [pygame.K_UP, pygame.K_LEFT, pygame.K_RIGHT, pygame.K_DOWN]
         self.inv_keys = [pygame.K_LCTRL, pygame.K_RCTRL, pygame.K_LALT, pygame.K_RALT]
@@ -97,17 +97,22 @@ class DangerousDaveEnv(gym.Env):
 
         return self._get_observation(), {}
 
-    def step(self, action):
+    def step(self, action, sticky=True):
         # Convert action into player movement
-        key_map = [0, 0, 0, 0]
+        key_map = [0, 0, 0, 0, 0]
         key_map[action] = 1
         self.GamePlayer.movementInput(key_map)
 
         # Run one game step
-        self._run_game_step()
+        if not sticky:
+            self._run_game_step()
+            self.clock.tick()
+        else:
+            for _ in range(10):
+                self._run_game_step()
+                self.clock.tick()
 
         self.episode_clock += 1
-        self.clock.tick()
 
         # Return observation, reward, done, info
         # print("Time:", self.episode_clock)
@@ -162,7 +167,7 @@ class DangerousDaveEnv(gym.Env):
         
         # Get keys (movement)
         pressed_keys = pygame.key.get_pressed()
-        key_map = [0, 0, 0, 0]
+        key_map = [0, 0, 0, 0, 0]
         for i, key in enumerate(self.movement_keys):
             if pressed_keys[key]:
                 key_map[i] = 1
@@ -175,6 +180,7 @@ class DangerousDaveEnv(gym.Env):
         # If the player ended the level, go on to the next
         if self.GamePlayer.getCurrentState() == STATE.ENDMAP:
             self.ended_level = True
+            self.ended_game = True
             self.GamePlayer.setScore(self.GamePlayer.getScore() + END_LEVEL_SCORE)
             return
         # If the player died, spawn death puff and respawn player (if enough lives)
@@ -256,7 +262,26 @@ if __name__ == '__main__':
     env = DangerousDaveEnv()
     obs = env.reset()
     for i in range(1000):
-        action = env.action_space.sample()
+        print("Step: ", i)
+        action = 4
+        # wait for user input
+        event = pygame.event.wait(1)
+        # take input from the user from pygame
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+            pygame.quit()
+            break
+        elif event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_UP:
+                action = 0
+            elif event.key == pygame.K_LEFT:
+                action = 1
+            elif event.key == pygame.K_RIGHT:
+                action = 2
+            elif event.key == pygame.K_DOWN:
+                action = 3
+        
+        # sticky actions
+        # for _ in range(10):
         obs, reward, done, truncated, info = env.step(action)
         env.render()
         if done:
