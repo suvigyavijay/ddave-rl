@@ -7,15 +7,20 @@ import argparse
 from custom_cnn import policy_kwargs
 import torch
 import numpy as np
+from stable_baselines3.ppo import MlpPolicy,CnnPolicy
+import random
+
+
 
 
 
 if __name__ == "__main__":
-    device = 'cuda'
+    
+    device = 'mps'
     device = torch.device(device)
 
     # Manual assignment of arguments (replace with your desired values or use ipywidgets for interactivity)
-    train = False  # equivalent to --train in argparse
+    train = True  # equivalent to --train in argparse
     evaluate = True  # equivalent to --evaluate in argparse
     model_name = "ppo_test_2"  # manually specify or generate a name
     env_rep_type = 'text'  # 'text' or 'image'
@@ -31,11 +36,12 @@ if __name__ == "__main__":
     tensorboard_log_run_name = '0'
     print(model_name,tensorboard_log)
     # Create the DangerousDaveEnv environment
-    random_respawn=True
-    env = DangerousDaveEnv(render_mode="human", env_rep_type=env_rep_type,random_respawn=random_respawn)
+    random_respawn=False
+    policy = 'MLP'
+    env = DangerousDaveEnv(render_mode="human", env_rep_type=env_rep_type,random_respawn=random_respawn,policy=policy)
     obs,info = env.reset()
 
-    total_timesteps=300000
+    total_timesteps=100000
   
     if model_type == 'DQN':
         if train:
@@ -45,7 +51,7 @@ if __name__ == "__main__":
                 model.set_env(env)
             else:
                 model = DQN("CnnPolicy", env, verbose=1, batch_size=256, policy_kwargs=policy_kwargs,
-                            learning_starts=1000, exploration_fraction=0.5, exploration_final_eps=0.01, device=device,
+                            learning_starts=1000, exploration_fraction=0.1, exploration_final_eps=0.01, device=device,
                             target_update_interval=5000, buffer_size=100000,tensorboard_log=tensorboard_log)
 
             model.learn(total_timesteps=total_timesteps, progress_bar=True,tb_log_name=tensorboard_log_run_name,log_interval=1)
@@ -68,18 +74,18 @@ if __name__ == "__main__":
             if retrain:
                 model = PPO.load("checkpoints/{}".format(model_name), env=env,tensorboard_log=tensorboard_log)
             else:
-                model = PPO("CnnPolicy", env, verbose=1, batch_size=256, policy_kwargs=policy_kwargs, device=device,
-                            tensorboard_log=tensorboard_log,ent_coef=0.01,vf_coef=1)
+                model = PPO(MlpPolicy, env, verbose=1, batch_size=256, policy_kwargs=policy_kwargs, device=device,
+                            tensorboard_log=tensorboard_log,ent_coef=0.001,n_steps=2048,gae_lambda=0.95)
 
             model.learn(total_timesteps=total_timesteps, progress_bar=True,tb_log_name=tensorboard_log_run_name,log_interval=1)
             model.save("checkpoints/{}".format(model_name))
-            env = DangerousDaveEnv(render_mode="human", env_rep_type=env_rep_type,random_respawn=False)
-            model = PPO.load("checkpoints/{}".format(model_name),tensorboard_log=tensorboard_log)
-            model.set_env(env)
-            obs,info = env.reset()
-            model.learn(total_timesteps=total_timesteps, progress_bar=True,tb_log_name=tensorboard_log_run_name,log_interval=1)
-            # Save the trained model if desired
-            model.save("checkpoints/{}".format(model_name))
+            # env = DangerousDaveEnv(render_mode="human", env_rep_type=env_rep_type,random_respawn=False)
+            # model = PPO.load("checkpoints/{}".format(model_name),tensorboard_log=tensorboard_log)
+            # model.set_env(env)
+            # obs,info = env.reset()
+            # model.learn(total_timesteps=total_timesteps, progress_bar=True,tb_log_name=tensorboard_log_run_name,log_interval=1)
+            # # Save the trained model if desired
+            # model.save("checkpoints/{}".format(model_name))
             
         if evaluate:
             # Evaluate the trained model
@@ -88,7 +94,7 @@ if __name__ == "__main__":
     if evaluate:
         eps_reward = []
         for i in range(5):
-            env = DangerousDaveEnv(render_mode="human", env_rep_type=env_rep_type,random_respawn=False)
+            env = DangerousDaveEnv(render_mode="human", env_rep_type=env_rep_type,random_respawn=random_respawn,policy=policy)
             obs, info = env.reset()
             terminated = False
             truncated = False

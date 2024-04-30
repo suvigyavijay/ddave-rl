@@ -38,8 +38,31 @@ class CustomCNN(BaseFeaturesExtractor):
         x = self.fc1(x)
         x = th.relu(self.fc2(x))
         return x
+    
+
+class CustomMLP(BaseFeaturesExtractor):
+    """
+    :param observation_space: (gym.Space)
+    :param features_dim: (int) Number of features extracted.
+        This corresponds to the number of unit for the last layer.
+    """
+
+    def __init__(self, observation_space: spaces.Box, features_dim: int = 256):
+        super().__init__(observation_space, features_dim)
+        # We assume CxHxW images (channels first)
+        # Re-ordering will be done by pre-preprocessing or wrapper
+        self.fc1 = nn.Linear(observation_space.shape[0], 1024)
+        self.fc2 = nn.Linear(1024, 1024)
+        self.fc3 = nn.Linear(1024, features_dim)  # Fully connected layer to output 128 features
+
+    def forward(self, x: th.Tensor) -> th.Tensor:
+        x = th.relu(self.fc1(x))
+        x = th.relu(self.fc2(x))
+        x = th.relu(self.fc3(x))
+        return x
 
 policy_kwargs = dict(
-    features_extractor_class=CustomCNN,
+    features_extractor_class=CustomMLP,
     features_extractor_kwargs=dict(features_dim=256),
+    normalize_images = False
 )

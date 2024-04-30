@@ -19,10 +19,10 @@ END_LEVEL_SCORE = int(config['GAME']['END_LEVEL_SCORE'])
 class DangerousDaveEnv(gym.Env):
     metadata = {"render_modes": ["human"]}
 
-    def __init__(self, render_mode="human",env_rep_type='image',random_respawn=False):
+    def __init__(self, render_mode="human",env_rep_type='image',random_respawn=False,policy='CNN'):
         self.render_mode = render_mode
         self.env_rep_type = env_rep_type
-
+        self.policy = policy
         # Initialize pygame
         pygame.init()
         self.game_screen = Screen(SCREEN_WIDTH, SCREEN_HEIGHT)
@@ -58,11 +58,15 @@ class DangerousDaveEnv(gym.Env):
             self.observation_space = spaces.Box(low=0, high=255, shape=(int(SCREEN_WIDTH/RESCALE_FACTOR), int(SCREEN_HEIGHT/RESCALE_FACTOR), 1), dtype=np.uint8)
         elif self.env_rep_type == 'text':
             box_shape = (1,len(self.Level.node_matrix), len(self.Level.node_matrix[0][:19]))
-            print(box_shape)
             all_possible_labels = ['scenery', 'tree', 'pinkpipe', 'door', 'items', 'trophy', 'player_spawner', 'tunnel', 'solid', 'water', 'tentacles', 'fire',
                                     'tentacles','gun','jetpack','moonstars','player']
-            self.observation_space = spaces.Box(low=0, high=255, shape=box_shape, dtype=np.uint8)
+            print(box_shape)
+            if self.policy == 'CNN':
+                self.observation_space = spaces.Box(low=0, high=len(all_possible_labels), shape=box_shape, dtype=np.uint8)
+            else:
+                self.observation_space = spaces.Box(low=0, high=len(all_possible_labels),shape=(box_shape[1]*box_shape[2],),dtype=np.uint8)
             print(self.observation_space)
+            
 
         # Initialize screen and player positions
         self.player_position_x, self.player_position_y = self.Level.initPlayerPositions(self.current_spawner_id, self.GamePlayer)
@@ -156,7 +160,7 @@ class DangerousDaveEnv(gym.Env):
 
         # Return observation, reward, done, info
         # print("Time:", self.episode_clock)
-        return self._get_observation(), self._get_reward(), self.ended_game, self.episode_clock >= 1500, {}
+        return self._get_observation(), self._get_reward(), self.ended_game, self.episode_clock >= 2048, {}
 
     def render(self, mode='human'):
         # Render the game screen
@@ -302,10 +306,15 @@ class DangerousDaveEnv(gym.Env):
 
             # Normalize the game data if needed
             # game_data = game_data / 255.0
+            if self.policy == 'MLP':
+                game_data = game_data.flatten()
+
         
     
         elif self.env_rep_type == 'text':
             game_data = self._get_text_representation()
+            if self.policy == 'MLP':
+                game_data = game_data.flatten()
        
         return game_data
 
