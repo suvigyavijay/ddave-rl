@@ -1,8 +1,8 @@
 import gymnasium as gym
 from gymnasium import spaces
 import pygame
-from ddave.utils import *
-from ddave.helper import *
+from ddave.utils_new import *
+# from ddave.helper import *
 import numpy as np
 import configparser
 from sklearn.preprocessing import LabelEncoder
@@ -24,18 +24,18 @@ class DangerousDaveEnv(gym.Env):
         self.env_rep_type = env_rep_type
         self.policy = policy
         # Initialize pygame
-        pygame.init()
+        # pygame.init() # Commented out for abstraction purposes
         self.game_screen = Screen(SCREEN_WIDTH, SCREEN_HEIGHT)
         self.random_respawn = random_respawn
 
         # Initialize tiles
-        self.tileset, self.ui_tileset = load_game_tiles()
+        # self.tileset, self.ui_tileset = load_game_tiles()
 
         # Define action space (movement keys)
         self.action_space = spaces.Discrete(4)  # Up, Left, Right, Down
 
-        self.movement_keys = [pygame.K_UP, pygame.K_LEFT, pygame.K_RIGHT, pygame.K_DOWN]
-        self.inv_keys = [pygame.K_LCTRL, pygame.K_RCTRL, pygame.K_LALT, pygame.K_RALT]
+        self.movement_keys = [0, 1, 2, 3]  # Abstracted to simple integers
+        self.inv_keys = [4, 5, 6, 7]  # Abstracted to simple integers
 
 
         # Initialize other variables
@@ -46,7 +46,7 @@ class DangerousDaveEnv(gym.Env):
         self.current_score = 0
 
         # Initialize clock
-        self.clock = pygame.time.Clock()
+        # self.clock = # pygame.time.Clock()  # Commented out for abstraction purposes
         self.episode_clock = 0
 
         # Build the level
@@ -156,13 +156,15 @@ class DangerousDaveEnv(gym.Env):
         self._run_game_step()
 
         self.episode_clock += 1
-        self.clock.tick()
+        # self.clock.tick()  # Commented out for abstraction purposes
 
         # Return observation, reward, done, info
         # print("Time:", self.episode_clock)
         return self._get_observation(), self._get_reward(), self.ended_game, self.episode_clock >= 2048, {}
 
     def render(self, mode='human'):
+
+        return 'no render'
         # Render the game screen
 
         # update UI
@@ -186,11 +188,12 @@ class DangerousDaveEnv(gym.Env):
         pygame.display.update()
 
     def close(self):
-        pygame.quit()
+        self.ended_game = True
+        # pygame.quit()
 
     def _run_game_step(self):
         # Get keys (inventory)
-        # for event in pygame.event.get():
+        # for event in # pygame.event.get()  # Commented out for abstraction purposes:
         #     # Stop moving
         #     if event.type == pygame.KEYUP:
         #         # Horizontally
@@ -250,28 +253,28 @@ class DangerousDaveEnv(gym.Env):
                     self.ended_level = True
                     self.ended_game = True
 
-        # If the player is close enough to one of the screen boundaries, move the screen.
-        player_close_to_left_boundary = (self.player_position_x <= self.game_screen.getXPositionInPixelsUnscaled() + BOUNDARY_DISTANCE_TRIGGER)
-        player_close_to_right_boundary = (self.player_position_x >= self.game_screen.getXPositionInPixelsUnscaled() + self.game_screen.getUnscaledWidth() - BOUNDARY_DISTANCE_TRIGGER)
-        reached_level_left_boundary = (self.game_screen.getXPosition() <= 0)
-        reached_level_right_boundary = (self.game_screen.getXPosition() + self.game_screen.getWidthInTiles() > self.Level.getWidth())
+        # # If the player is close enough to one of the screen boundaries, move the screen.
+        # player_close_to_left_boundary = (self.player_position_x <= self.game_screen.getXPositionInPixelsUnscaled() + BOUNDARY_DISTANCE_TRIGGER)
+        # player_close_to_right_boundary = (self.player_position_x >= self.game_screen.getXPositionInPixelsUnscaled() + self.game_screen.getUnscaledWidth() - BOUNDARY_DISTANCE_TRIGGER)
+        # reached_level_left_boundary = (self.game_screen.getXPosition() <= 0)
+        # reached_level_right_boundary = (self.game_screen.getXPosition() + self.game_screen.getWidthInTiles() > self.Level.getWidth())
 
-        # Move screen left
-        if player_close_to_left_boundary and not reached_level_left_boundary:
-            self.game_screen.moveScreenX(self.Level, -15, self.tileset, self.ui_tileset, self.GamePlayer, self.current_level_number)
-        # Move screen right
-        elif player_close_to_right_boundary and not reached_level_right_boundary:
-            self.game_screen.moveScreenX(self.Level, 15, self.tileset, self.ui_tileset, self.GamePlayer, self.current_level_number)
-        # Not moving (just update the screen)
-        else:
-            self.game_screen.printMap(self.Level, self.tileset)
+        # # Move screen left
+        # if player_close_to_left_boundary and not reached_level_left_boundary:
+        #     self.game_screen.moveScreenX(self.Level, -15, self.tileset, self.ui_tileset, self.GamePlayer, self.current_level_number)
+        # # Move screen right
+        # elif player_close_to_right_boundary and not reached_level_right_boundary:
+        #     self.game_screen.moveScreenX(self.Level, 15, self.tileset, self.ui_tileset, self.GamePlayer, self.current_level_number)
+        # # Not moving (just update the screen)
+        # else:
+        #     self.game_screen.printMap(self.Level, self.tileset)
 
-            if self.GamePlayer.getCurrentState() != STATE.DESTROY:
-                # Print player accordingly to screen shift
-                self.game_screen.printPlayer(self.GamePlayer, self.player_position_x - self.game_screen.getXPositionInPixelsUnscaled(), self.player_position_y, self.tileset)
-            elif not self.ended_game:
-                # Print death puff accordingly to screen shift
-                self.game_screen.printTile(self.player_position_x - self.game_screen.getXPositionInPixelsUnscaled(), self.player_position_y, DeathPuff.getGraphic(self.tileset))
+        #     if self.GamePlayer.getCurrentState() != STATE.DESTROY:
+        #         # Print player accordingly to screen shift
+        #         self.game_screen.printPlayer(self.GamePlayer, self.player_position_x - self.game_screen.getXPositionInPixelsUnscaled(), self.player_position_y, self.tileset)
+        #     elif not self.ended_game:
+        #         # Print death puff accordingly to screen shift
+        #         self.game_screen.printTile(self.player_position_x - self.game_screen.getXPositionInPixelsUnscaled(), self.player_position_y, DeathPuff.getGraphic(self.tileset))
     
     def _get_text_representation(self):
        
@@ -290,27 +293,26 @@ class DangerousDaveEnv(gym.Env):
     def _get_observation(self):
         # Capture the current game screen
         if self.env_rep_type == 'image':
+            return np.zeros(shape=(1,11,19))
 
-            game_surface = pygame.display.get_surface()
+            # game_surface = pygame.display.get_surface()
 
-            game_surface = pygame.transform.scale(game_surface, (int(SCREEN_WIDTH/RESCALE_FACTOR), int(SCREEN_HEIGHT/RESCALE_FACTOR)))
-            # Convert the game surface to a numpy array
-            game_data = pygame.surfarray.array3d(game_surface)
+            # game_surface = pygame.transform.scale(game_surface, (int(SCREEN_WIDTH/RESCALE_FACTOR), int(SCREEN_HEIGHT/RESCALE_FACTOR)))
+            # # Convert the game surface to a numpy array
+            # game_data = pygame.surfarray.array3d(game_surface)  # Commented out for abstraction purposes(game_surface)
 
 
-            # Convert the color space from RGB to grayscale if needed
-            game_data = np.dot(game_data[..., :3], [0.299, 0.587, 0.114])
+            # # Convert the color space from RGB to grayscale if needed
+            # game_data = np.dot(game_data[..., :3], [0.299, 0.587, 0.114])
 
-            # Resize the game data if needed
-            game_data = game_data.reshape((int(SCREEN_WIDTH/RESCALE_FACTOR), int(SCREEN_HEIGHT/RESCALE_FACTOR), 1))
+            # # Resize the game data if needed
+            # game_data = game_data.reshape((int(SCREEN_WIDTH/RESCALE_FACTOR), int(SCREEN_HEIGHT/RESCALE_FACTOR), 1))
 
-            # Normalize the game data if needed
-            # game_data = game_data / 255.0
-            if self.policy == 'MLP':
-                game_data = game_data.flatten()
+            # # Normalize the game data if needed
+            # # game_data = game_data / 255.0
+            # if self.policy == 'MLP':
+            #     game_data = game_data.flatten()
 
-        
-    
         elif self.env_rep_type == 'text':
             game_data = self._get_text_representation()
             if self.policy == 'MLP':
@@ -340,7 +342,8 @@ if __name__ == '__main__':
         for i in range(500):
             action = env.action_space.sample()
             obs, reward, done, truncated, info = env.step(action)
-            env.render()
+            if reward != -1 and reward != -2:
+                print(reward,'agent collected trophy or item')
             if done:
                 print("Episode finished after {} timesteps".format(i+1))
                 break

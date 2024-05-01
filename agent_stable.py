@@ -39,38 +39,39 @@ if __name__ == "__main__":
     env_rep_type = 'text'  # 'text' or 'image'
     env = DangerousDaveEnv(render_mode="human", env_rep_type=env_rep_type,random_respawn=random_respawn,policy=policy)
     obs,info = env.reset()
-
     total_timesteps=50000
-  
     if model_type == 'DQN':
         if train:
             # Define and train the DQN agent
             memory_size = 100000
-            batch_size = 1024
+            batch_size = 512
             target_update = 100
             n_step = 10
+            atom_size=1000
+            v_min = -2000
+            v_max = 2000
 
             if retrain:
-                model = DQNAgent.load("checkpoints/{}".format(model_name),tensorboard_log=tensorboard_log)
-                model.set_env(env)
+                model = DQNAgent(env,memory_size=memory_size,batch_size=batch_size,target_update=target_update,
+                             seed=42,n_step=n_step,device=device,v_min=-2000,v_max=2000,atom_size=atom_size)
+
+                model.load("checkpoints/{}".format(model_name))
             else:
                 model = DQNAgent(env,memory_size=memory_size,batch_size=batch_size,target_update=target_update,
-                             seed=42,n_step=n_step,device=device)
+                             seed=42,n_step=n_step,device=device,v_min=-2000,v_max=2000,atom_size=atom_size)
 
             model.learn(total_timesteps)
             env = DangerousDaveEnv(render_mode="human", env_rep_type=env_rep_type,random_respawn=False,policy=policy)
             model.env = env
             obs,info = env.reset()
             model.learn(total_timesteps)
-            
-        
-            # model.learn(total_timesteps=total_timesteps, progress_bar=True,tb_log_name=tensorboard_log_run_name,log_interval=1)
             model.save("checkpoints/{}".format(model_name))
           
         if evaluate:
-            pass
+            model = DQNAgent(env,memory_size=memory_size,batch_size=batch_size,target_update=target_update,seed=42,
+                             n_step=n_step,device=device,v_min=-2000,v_max=2000,atom_size=atom_size)
             # Evaluate the trained model
-            # model = DQNAgent.load("checkpoints/{}".format(model_name), env=env,tensorboard_log=tensorboard_log)
+            model.load("checkpoints/{}".format(model_name))
 
     # elif model_type == 'PPO':
     #     if train:
@@ -100,12 +101,16 @@ if __name__ == "__main__":
         for i in range(5):
             env = DangerousDaveEnv(render_mode="human", env_rep_type=env_rep_type,random_respawn=False,policy=policy)
             obs, info = env.reset()
+
+            for j in range(10):
+                obs, __,_,_,_ = env.step(env.action_space.sample())
             terminated = False
             truncated = False
             reward = 0
             while not (terminated or truncated):
                 action, _ = model.predict(obs)
                 obs, rewards, terminated, truncated, info = env.step(action)
+                print(action,rewards)
                 reward += rewards
             eps_reward.append(reward)
         print(f'{np.mean(eps_reward)} eval reward mean')
@@ -113,9 +118,12 @@ if __name__ == "__main__":
 
         env = DangerousDaveEnv(render_mode="human", env_rep_type=env_rep_type,random_respawn=False,policy=policy)
         obs, info = env.reset()
+
+        for j in range(10):
+            obs, __,_,_,_ = env.step(env.action_space.sample())
         terminated = False
         truncated = False
-        reward = 0
+        
         while not (terminated or truncated):
             action, _ = model.predict(obs)
             obs, rewards, terminated, truncated, info = env.step(action)

@@ -568,6 +568,8 @@ class DQNAgent:
     def step(self, action: np.ndarray) -> Tuple[np.ndarray, np.float64, bool]:
         """Take an action and return the response of the env."""
         next_state, reward, terminated, truncated, _ = self.env.step(action)
+        if terminated:
+            print('Agent solved level 1')
         done = terminated or truncated
         
         if not self.is_test:
@@ -719,6 +721,12 @@ class DQNAgent:
         action = torch.LongTensor(samples["acts"]).to(device)
         reward = torch.FloatTensor(samples["rews"].reshape(-1, 1)).to(device)
         done = torch.FloatTensor(samples["done"].reshape(-1, 1)).to(device)
+
+
+        action_numpy = action.cpu().numpy()
+        unique, counts = np.unique(action_numpy, return_counts=True)
+
+        # print(np.asarray((unique, counts)).T)
         
         # Categorical DQN algorithm
         delta_z = float(self.v_max - self.v_min) / (self.atom_size - 1)
@@ -783,7 +791,7 @@ class DQNAgent:
         torch.save(self.dqn.state_dict(), path+'.pth')
     
     def load(self,path):
-        self.dqn.load_state_dict(torch.load(path))
+        self.dqn.load_state_dict(torch.load(path+'.pth'))
 
 
 
