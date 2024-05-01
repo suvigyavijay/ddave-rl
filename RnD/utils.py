@@ -16,20 +16,21 @@ train_method = default_config['TrainMethod']
 
 def make_train_data(reward, done, value, gamma, num_step, num_worker):
     
+    
     discounted_return = np.empty(done.shape)
 
     # Discounted Return
     if use_gae:
-        gae = np.zeros_like([num_worker, ])
+        gae = np.zeros_like((1, ))
         for t in range(num_step - 1, -1, -1):
-            delta = reward[:, t] + gamma * value[:, t + 1] * (1 - done[:, t]) - value[:, t]
-            gae = delta + gamma * lam * (1 - done[:, t]) * gae
+            delta = reward[t] + gamma * value[t + 1] * (1 - done[t]) - value[t]
+            gae = delta + gamma * lam * (1 - done[t]) * gae
 
-            discounted_return[:, t] = (gae + value[:, t])
+            discounted_return[t] = (gae + value[t])
 
             # For Actor
         
-        adv = discounted_return - value[:, :-1]
+        adv = discounted_return - value[:-1]
     else:
         running_add = value[:, -1]
         for t in range(num_step - 1, -1, -1):

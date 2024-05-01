@@ -2,26 +2,26 @@
 TrainMethod: RND
 EnvType: ddave
 EnvID: ddave
-MaxStepPerEpisode: 1500 #4500
+MaxStepPerEpisode: 15 #4500
 ExtCoef: 2.
 LearningRate: 1.0e-4
 NumEnv: 1
-NumStep: 10 #128
-Gamma: 0.999
+NumStep: 1 #128 
+Gamma: 0.99
 IntGamma: 0.99
 Lambda: 0.95
 StableEps: 1.0e-8
-StateStackSize: 4
+StateStackSize: 1
 PreProcHeight: 84
 ProProcWidth: 84
-UseGAE: False
-UseGPU: False
+UseGAE: True
+UseGPU: True
 UseNorm: False
 UseNoisyNet: False
-ClipGradNorm: 0.5
-Entropy: 0.001
+ClipGradNorm: 1
+Entropy: 0.1
 Epoch: 4
-MiniBatch: 4
+MiniBatch: 1
 PPOEps: 0.1
 IntCoef: 1.
 StickyAction: False

@@ -58,13 +58,17 @@ class RNDAgent(object):
         state = torch.Tensor(state).to(self.device)
         state = state.float()
         policy, value_ext, value_int = self.model(state)
-        action_prob = F.softmax(policy, dim=-1).data.cpu().numpy()
+        action_prob = F.softmax(policy, dim=-1).data.cpu()
 
-        action = self.random_choice_prob_index(action_prob)
+
+        action = Categorical(action_prob).sample().cpu().numpy()
+        # action = self.random_choice_prob_index(action_prob)
         return action, value_ext.data.cpu().numpy().squeeze(), value_int.data.cpu().numpy().squeeze(), policy.detach()
 
     @staticmethod
     def random_choice_prob_index(p, axis=1):
+        print(p)
+        # import pdb;pdb.set_trace()
         r = np.expand_dims(np.random.rand(p.shape[1 - axis]), axis=axis)
         return (p.cumsum(axis=axis) > r).argmax(axis=axis)
 
@@ -77,7 +81,7 @@ class RNDAgent(object):
         return intrinsic_reward.data.cpu().numpy()
 
     def train_model(self, s_batch, target_ext_batch, target_int_batch, y_batch, adv_batch, next_obs_batch, old_policy):
-        
+
         s_batch = torch.FloatTensor(s_batch).to(self.device)
         target_ext_batch = torch.FloatTensor(target_ext_batch).to(self.device)
         target_int_batch = torch.FloatTensor(target_int_batch).to(self.device)

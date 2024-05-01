@@ -10,13 +10,13 @@ BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 sys.path.append(BASE_DIR)
 from agent import DangerousDaveEnv
 
-from tensorboardX import SummaryWriter
+# from tensorboardX import SummaryWriter
 
 import numpy as np
 
 
 def main():
-   
+  
     train_method = default_config['TrainMethod']
     env_id = default_config['EnvID']
     env_type = default_config['EnvType']
@@ -36,7 +36,7 @@ def main():
     if not os.path.exists('models/'):
         os.makedirs('models/',exist_ok=True)
     
-    writer = SummaryWriter()
+    # writer = SummaryWriter()
 
     use_cuda = default_config.get('UseGPU')
     use_gae = default_config.get('UseGAE')
@@ -107,9 +107,10 @@ def main():
 
 
     final_env = DaveEnvironment(env_id=env_id,is_render=is_render,env_idx=0,env=env,sticky_action=sticky_action,p=action_prob,
-                         life_done=life_done,h=11,w=19)
+                         life_done=life_done,h=11,w=19,history_size=1)
+
    
-    states = np.zeros([4, 1, 11,19])
+    states = final_env.reset()
 
     sample_episode = 0
     sample_rall = 0
@@ -123,20 +124,21 @@ def main():
     print('Start to initailize observation normalization parameter.....')
     next_obs = []
 
-
+   
     for step in range(num_step * pre_obs_norm_step):
         action = np.random.randint(0, output_size)
         s, r, d, rd, lr = final_env.run(action)
        
-        next_obs.append(s[3, :, :,:].reshape([1, 11,19]))
+        next_obs.append(s[0, :, :,:].reshape([1, 11,19]))
 
         if len(next_obs) % (num_step * num_worker) == 0:
             next_obs = np.stack(next_obs)
             obs_rms.update(next_obs)
             next_obs = []
     print('End to initalize...')
-
+    _ = final_env.reset()
     while True:
+   
         total_state, total_reward, total_done, total_next_state, total_action, total_int_reward, total_next_obs, total_ext_values, total_int_values, total_policy, total_policy_np = \
             [], [], [], [], [], [], [], [], [], [], []
         global_step += (num_worker * num_step)
@@ -144,32 +146,40 @@ def main():
         # Step 1. n-step rollout
         for _ in range(num_step):
             actions, value_ext, value_int, policy = agent.get_action(np.float32(states))
-        
-            next_states, rewards, dones, real_dones, log_rewards, next_obs = [], [], [], [], [], []
-         
-            for action in actions:
-                s, r, d, rd, lr = final_env.run(action)
-                next_states.append(s[3, :, :,:].reshape([1, 11, 19]))
-                rewards.append(r)
-                dones.append(d)
-                real_dones.append(rd)
-                log_rewards.append(lr)
-                next_obs.append(s[3, :, :,:].reshape([1, 11, 19]))
 
-    
-            next_states = np.stack(next_states)
-            rewards = np.hstack(rewards)
-            dones = np.hstack(dones)
-            real_dones = np.hstack(real_dones)
-            next_obs = np.stack(next_obs)
+            next_states, rewards, dones, real_dones, log_rewards, next_obs = [], [], [], [], [], []
+
+
+
+            s, r, d, rd, lr = final_env.run(actions[0])
+
+            next_states = s
+            rewards = r
+            dones = d
+            real_dones = rd
+            log_rewards = lr
+            next_obs = s[0,:,:,:]
+
+            # next_states.append(s[3, :, :,:].reshape([1, 11, 19]))
+            # rewards.append(r)
+            # dones.append(d)
+            # real_dones.append(rd)
+            # log_rewards.append(lr)
+            # next_obs.append(s[3, :, :,:].reshape([1, 11, 19]))
+
+            # next_states = np.stack(next_states)
+            # rewards = np.hstack(rewards)
+            # dones = np.hstack(dones)
+            # real_dones = np.hstack(real_dones)
+            # next_obs = np.stack(next_obs)
 
          
             # total reward = int reward + ext Reward
             intrinsic_reward = agent.compute_intrinsic_reward(
                 ((next_obs - obs_rms.mean) / np.sqrt(obs_rms.var)).clip(-5, 5))
             
-            intrinsic_reward = np.hstack(intrinsic_reward)
-            sample_i_rall += intrinsic_reward[sample_env_idx]
+            # intrinsic_reward = np.hstack(intrinsic_reward)
+            # sample_i_rall += intrinsic_reward[sample_env_idx]
 
             total_next_obs.append(next_obs)
             total_int_reward.append(intrinsic_reward)
@@ -182,21 +192,21 @@ def main():
             total_policy.append(policy)
             total_policy_np.append(policy.cpu().numpy())
 
-            states = next_obs
+            states = next_states
 
-            sample_rall += log_rewards[sample_env_idx]
+            # sample_rall += log_rewards[sample_env_idx]
 
-            sample_step += 1
-            if real_dones[sample_env_idx]:
-                sample_episode += 1
-                writer.add_scalar('data/reward_per_epi', sample_rall, sample_episode)
-                writer.add_scalar('data/reward_per_rollout', sample_rall, global_update)
-                writer.add_scalar('data/step', sample_step, sample_episode)
-                sample_rall = 0
-                sample_step = 0
-                sample_i_rall = 0
+            # sample_step += 1
+            # if real_dones[sample_env_idx]:
+            #     sample_episode += 1
+            #     # writer.add_scalar('data/reward_per_epi', sample_rall, sample_episode)
+            #     # writer.add_scalar('data/reward_per_rollout', sample_rall, global_update)
+            #     # writer.add_scalar('data/step', sample_step, sample_episode)
+            #     sample_rall = 0
+            #     sample_step = 0
+            #     sample_i_rall = 0
 
-
+        
         # calculate last next value
         _, value_ext, value_int, _ = agent.get_action(np.float32(states))
         total_ext_values.append(value_ext)
@@ -207,27 +217,28 @@ def main():
         total_reward = np.stack(total_reward).transpose()
         total_action = np.stack(total_action).transpose().reshape([-1])
         total_done = np.stack(total_done).transpose()
-        total_next_obs = np.stack(total_next_obs).transpose([1, 0, 2, 3, 4]).reshape([-1, 1, 11, 19])
+        total_next_obs = np.stack(total_next_obs)
         total_ext_values = np.stack(total_ext_values).transpose()
         total_int_values = np.stack(total_int_values).transpose()
         total_logging_policy = np.vstack(total_policy_np)
 
         # Step 2. calculate intrinsic reward
         # running mean intrinsic reward
-        total_int_reward = np.stack(total_int_reward).transpose()
+        
+        total_int_reward = np.stack(total_int_reward).transpose().reshape([-1])
         total_reward_per_env = np.array([discounted_reward.update(reward_per_step) for reward_per_step in
-                                         total_int_reward.T])
+                                         total_int_reward.T]).reshape([-1])
         mean, std, count = np.mean(total_reward_per_env), np.std(total_reward_per_env), len(total_reward_per_env)
         reward_rms.update_from_moments(mean, std ** 2, count)
 
         # normalize intrinsic reward
         total_int_reward /= np.sqrt(reward_rms.var)
-        writer.add_scalar('data/int_reward_per_epi', np.sum(total_int_reward) / num_worker, sample_episode)
-        writer.add_scalar('data/int_reward_per_rollout', np.sum(total_int_reward) / num_worker, global_update)
-        # -------------------------------------------------------------------------------------------
+        # writer.add_scalar('data/int_reward_per_epi', np.sum(total_int_reward) / num_worker, sample_episode)
+        # writer.add_scalar('data/int_reward_per_rollout', np.sum(total_int_reward) / num_worker, global_update)
+        # # -------------------------------------------------------------------------------------------
 
-        # logging Max action probability
-        writer.add_scalar('data/max_prob', softmax(total_logging_policy).max(1).mean(), sample_episode)
+        # # logging Max action probability
+        # writer.add_scalar('data/max_prob', softmax(total_logging_policy).max(1).mean(), sample_episode)
 
         # Step 3. make target and advantage
         # extrinsic reward calculate
@@ -246,7 +257,7 @@ def main():
                                               int_gamma,
                                               num_step,
                                               num_worker)
-
+        
         # add ext adv and int adv
         total_adv = int_adv * int_coef + ext_adv * ext_coef
         # -----------------------------------------------
@@ -260,13 +271,30 @@ def main():
                           total_adv, ((total_next_obs - obs_rms.mean) / np.sqrt(obs_rms.var)).clip(-5, 5),
                           total_policy)
 
-        print(np.mean(total_reward))
+        
 
         if global_step % (num_worker * num_step * 100) == 0:
             print('Now Global Step :{}'.format(global_step))
+            print(f'Mean Reward {np.mean(total_reward)}')
             torch.save(agent.model.state_dict(), model_path)
             torch.save(agent.rnd.predictor.state_dict(), predictor_path)
             torch.save(agent.rnd.target.state_dict(), target_path)
+
+            eps_reward = []
+            for i in range(2):
+                eval_env = DangerousDaveEnv(render_mode='human',env_rep_type='text',random_respawn=False)
+                eval_obs, eval_info = eval_env.reset()
+                eval_terminated = False
+                eval_truncated = False
+                eval_reward = 0
+                while not (eval_terminated or eval_truncated):
+                    with torch.no_grad():
+                        action, _,_,_ = agent.get_action(np.expand_dims(eval_obs,0))
+                    eval_obs, eval_rewards, eval_terminated, eval_truncated, eval_info = eval_env.step(action[0])
+                    eval_reward += eval_rewards
+                eps_reward.append(eval_reward)
+            print(f'{np.mean(eps_reward)} eval reward mean')
+            print(eps_reward)
 
 
 if __name__ == '__main__':

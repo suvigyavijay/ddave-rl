@@ -103,7 +103,8 @@ class DaveEnvironment(Environment):
             p=0.25):
         super(DaveEnvironment, self).__init__()
         self.daemon = True
-        self.env = MaxAndSkipEnv(env, is_render)
+        self.env = env
+        # self.env = MaxAndSkipEnv(env, is_render)
         self.env_id = env_id
         self.is_render = is_render
         self.env_idx = env_idx
@@ -132,16 +133,105 @@ class DaveEnvironment(Environment):
                     action = self.last_action
                 self.last_action = action
 
-            s, reward, done, _, info = self.env.step(action)
+            s, reward, done, truncated, info = self.env.step(action)
+            
 
             if max_step_per_episode < self.steps:
                 done = True
 
+            force_done = done or truncated
             log_reward = reward
             force_done = done
 
-            self.history[:3, :, :,:] = self.history[1:, :, :,:]
-            self.history[3, :, :,:] = s
+            # self.history[:3, :, :,:] = self.history[1:, :, :,:]
+            self.history[0, :, :,:] = s
+
+            self.rall += reward
+            self.steps += 1
+
+            if done:
+                self.recent_rlist.append(self.rall)
+                self.history = self.reset()
+            
+            return self.history[:, :, :,:], reward, force_done, done, log_reward
+
+            
+    def reset(self):
+        self.last_action = 0
+        self.steps = 0
+        self.episode += 1
+        self.rall = 0
+        s,_ = self.env.reset()
+        self.get_init_state(s)
+        return self.history[:, :, :,:]
+
+    def pre_proc(self, _X):
+        return _X
+
+    def get_init_state(self, s):
+        for i in range(self.history_size):
+            self.history[i, :, :,:] = s
+
+
+
+class GridWorldEnvironment(Environment):
+    def __init__(
+            self,
+            env_id,
+            env,
+            is_render,
+            env_idx,
+            history_size=4,
+            h=84,
+            w=84,
+            life_done=True,
+            sticky_action=True,
+            p=0.25):
+        super(GridWorldEnvironment, self).__init__()
+        self.daemon = True
+        self.env = env
+        # self.env = MaxAndSkipEnv(env, is_render)
+        self.env_id = env_id
+        self.is_render = is_render
+        self.env_idx = env_idx
+        self.steps = 0
+        self.episode = 0
+        self.rall = 0
+        self.recent_rlist = deque(maxlen=100)
+
+        self.sticky_action = sticky_action
+        self.last_action = 0
+        self.p = p
+
+        self.history_size = history_size
+        self.history = np.zeros([history_size, 1, h, w])
+        self.h = h
+        self.w = w
+
+        self.reset()
+
+    def run(self,action):
+        super(GridWorldEnvironment, self).run()
+        while True:
+            # sticky action
+            if self.sticky_action:
+                if np.random.rand() <= self.p:
+                    action = self.last_action
+                self.last_action = action
+
+
+            s, reward, done, truncated, info = self.env.step(action)
+            
+
+            if max_step_per_episode < self.steps:
+                done = True
+                
+            force_done = done or truncated
+            log_reward = reward
+            force_done = done
+
+            # self.history[:3, :, :,:] = self.history[1:, :, :,:]
+            self.history[0, :, :,:] = s
 
             self.rall += reward
             self.steps += 1

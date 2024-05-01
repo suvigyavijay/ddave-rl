@@ -16,7 +16,7 @@ from stable_baselines3.common.env_checker import check_env
 
 if __name__ == "__main__":
 
-    device = 'mps'
+    device = 'cuda'
     device = torch.device(device)
 
     # Manual assignment of arguments (replace with your desired values or use ipywidgets for interactivity)
@@ -38,7 +38,7 @@ if __name__ == "__main__":
     # Create the DangerousDaveEnv environment
     random_respawn=False
     policy = 'MLP'
-    num_env = 7
+    num_env = 16
     if num_env > 1:
         env = SubprocVecEnv([lambda : DangerousDaveEnv(render_mode="human", env_rep_type=env_rep_type,random_respawn=random_respawn,policy=policy) for _ in range(num_env)])
     else:

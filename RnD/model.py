@@ -75,6 +75,8 @@ class CnnActorCriticNetwork(nn.Module):
     def __init__(self, input_size, output_size, use_noisy_net=False):
         super(CnnActorCriticNetwork, self).__init__()
 
+        feature_output = 3344
+        feature_output = 256
         if use_noisy_net:
             print('use NoisyNet')
             linear = NoisyLinear
@@ -84,46 +86,26 @@ class CnnActorCriticNetwork(nn.Module):
         self.feature = nn.Sequential(
             nn.Conv2d(
                 in_channels=1,
-                out_channels=32,
+                out_channels=16,
                 kernel_size=2,
                 padding=1),
             nn.ReLU(),
             nn.Conv2d(
-                in_channels=32,
-                out_channels=64,
-                kernel_size=1,
-                stride=1),
-            nn.ReLU(),
-            nn.Conv2d(
-                in_channels=64,
-                out_channels=64,
-                kernel_size=1,
+                in_channels=16,
+                out_channels=16,
+                kernel_size=2,
                 stride=1),
             nn.ReLU(),
             Flatten(),
-            linear(
-                15360,
-                256),
-            nn.ReLU(),
-            linear(
-                256,
-                448),
-            nn.ReLU()
+            nn.Linear(feature_output, 128),
         )
 
         self.actor = nn.Sequential(
-            linear(448, 448),
-            nn.ReLU(),
-            linear(448, output_size)
+            linear(128, output_size)
         )
 
-        self.extra_layer = nn.Sequential(
-            linear(448, 448),
-            nn.ReLU()
-        )
-
-        self.critic_ext = linear(448, 1)
-        self.critic_int = linear(448, 1)
+        self.critic_ext = linear(128, 1)
+        self.critic_int = linear(128, 1)
 
         for p in self.modules():
             if isinstance(p, nn.Conv2d):
@@ -145,16 +127,11 @@ class CnnActorCriticNetwork(nn.Module):
                 init.orthogonal_(self.actor[i].weight, 0.01)
                 self.actor[i].bias.data.zero_()
 
-        for i in range(len(self.extra_layer)):
-            if type(self.extra_layer[i]) == nn.Linear:
-                init.orthogonal_(self.extra_layer[i].weight, 0.1)
-                self.extra_layer[i].bias.data.zero_()
-
     def forward(self, state):
         x = self.feature(state)
         policy = self.actor(x)
-        value_ext = self.critic_ext(self.extra_layer(x) + x)
-        value_int = self.critic_int(self.extra_layer(x) + x)
+        value_ext = self.critic_ext(x)
+        value_int = self.critic_int(x)
         return policy, value_ext, value_int
 
 
@@ -165,55 +142,44 @@ class RNDModel(nn.Module):
         self.input_size = input_size
         self.output_size = output_size
 
-        feature_output = 11520
+        feature_output = 3344
+        feature_output = 256
         self.predictor = nn.Sequential(
             nn.Conv2d(
                 in_channels=1,
-                out_channels=32,
+                out_channels=16,
+                kernel_size=2,
+                padding=1),
+            nn.ReLU(),
+            nn.Conv2d(
+                in_channels=16,
+                out_channels=16,
                 kernel_size=2,
                 stride=1),
-            nn.LeakyReLU(),
-            nn.Conv2d(
-                in_channels=32,
-                out_channels=64,
-                kernel_size=1,
-                stride=1),
-            nn.LeakyReLU(),
-            nn.Conv2d(
-                in_channels=64,
-                out_channels=64,
-                kernel_size=1,
-                stride=1),
-            nn.LeakyReLU(),
+            nn.ReLU(),
             Flatten(),
-            nn.Linear(feature_output, 512),
+            nn.Linear(feature_output, 128),
             nn.ReLU(),
-            nn.Linear(512, 512),
-            nn.ReLU(),
-            nn.Linear(512, 512)
+            nn.Linear(128, 128)
         )
 
         self.target = nn.Sequential(
             nn.Conv2d(
                 in_channels=1,
-                out_channels=32,
+                out_channels=16,
+                kernel_size=2,
+                padding=1),
+            nn.ReLU(),
+            nn.Conv2d(
+                in_channels=16,
+                out_channels=16,
                 kernel_size=2,
                 stride=1),
-            nn.LeakyReLU(),
-            nn.Conv2d(
-                in_channels=32,
-                out_channels=64,
-                kernel_size=1,
-                stride=1),
-            nn.LeakyReLU(),
-            nn.Conv2d(
-                in_channels=64,
-                out_channels=64,
-                kernel_size=1,
-                stride=1),
-            nn.LeakyReLU(),
+            nn.ReLU(),
             Flatten(),
-            nn.Linear(feature_output, 512)
+            nn.Linear(feature_output, 128),
+            nn.ReLU(),
+            nn.Linear(128, 128)
         )
 
         for p in self.modules():
@@ -229,7 +195,7 @@ class RNDModel(nn.Module):
             param.requires_grad = False
 
     def forward(self, next_obs):
-   
+
         target_feature = self.target(next_obs)
         predict_feature = self.predictor(next_obs)
 

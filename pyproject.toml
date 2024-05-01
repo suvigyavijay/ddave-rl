@@ -1,0 +1,35 @@
+[project]
+name = "ddave-rl"
+version = "0.1.0"
+description = "Add your description here"
+authors = [
+    { name = "lashdk", email = "dhruvit.kothari@gmail.com" }
+]
+dependencies = [
+    "pygame>=2.5.2",
+    "scikit-learn==1.4.2",
+    "tensorboardx>=2.6.2.2",
+    "torch==2.2.2+cpu",
+    "torchvision==0.17.2+cpu",
+    "torchaudio==2.2.2+cpu",
+]
+readme = "README.md"
+requires-python = ">= 3.8"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.rye]
+managed = true
+dev-dependencies = []
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ddave_rl"]
+
+[[tool.rye.sources]]
+name = "pytorch"
+url = "https://download.pytorch.org/whl/cpu"
