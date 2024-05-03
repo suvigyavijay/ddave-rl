@@ -60,12 +60,12 @@ class DangerousDaveEnv(gym.Env):
             box_shape = (1,len(self.Level.node_matrix), len(self.Level.node_matrix[0][:19]))
             all_possible_labels = ['scenery', 'tree', 'pinkpipe', 'door', 'items', 'trophy', 'player_spawner', 'tunnel', 'solid', 'water', 'tentacles', 'fire',
                                     'tentacles','gun','jetpack','moonstars','player']
-            print(box_shape)
+           
             if self.policy == 'CNN':
                 self.observation_space = spaces.Box(low=0, high=len(all_possible_labels), shape=box_shape, dtype=np.uint8)
             else:
                 self.observation_space = spaces.Box(low=0, high=len(all_possible_labels),shape=(box_shape[1]*box_shape[2],),dtype=np.uint8)
-            print(self.observation_space)
+           
             
 
         # Initialize screen and player positions
@@ -174,7 +174,13 @@ class DangerousDaveEnv(gym.Env):
 
         # Return observation, reward, done, info
         # print("Time:", self.episode_clock)
-        return self._get_observation(), self._get_reward(), self.ended_game, self.episode_clock >= 2048, {}
+        reward = self._get_reward()
+        if self.ended_game:
+            print('agent reached door')
+        elif reward == int(config['GAME']['RESCALE_FACTOR']):
+            print('agent collected trophy')
+                
+        return self._get_observation(), reward, self.ended_game, self.episode_clock >= 2048, {}
 
     def render(self, mode='human'):
 
