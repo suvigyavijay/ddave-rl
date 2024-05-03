@@ -32,7 +32,7 @@ class DangerousDaveEnv(gym.Env):
         # self.tileset, self.ui_tileset = load_game_tiles()
 
         # Define action space (movement keys)
-        self.action_space = spaces.Discrete(4)  # Up, Left, Right, Down
+        self.action_space = spaces.Discrete(6)  # Up, Left, Right, Down
 
         self.movement_keys = [0, 1, 2, 3]  # Abstracted to simple integers
         self.inv_keys = [4, 5, 6, 7]  # Abstracted to simple integers
@@ -147,10 +147,24 @@ class DangerousDaveEnv(gym.Env):
         return self._get_observation(), {}
 
     def step(self, action):
+        # # Convert action into player movement
+        # key_map = [0, 0, 0, 0]
+        # key_map[action] = 1
         # Convert action into player movement
         key_map = [0, 0, 0, 0]
-        key_map[action] = 1
+        if action <= 3:
+            key_map[action] = 1
+        elif action == 4 or action == 5:
+            key_map[action-3] = 1
+            key_map[0] = 1
+    
         self.GamePlayer.movementInput(key_map)
+
+        if action in [1, 2,4,5] and self.GamePlayer.getCurrentState() in [STATE.WALK, STATE.FLY, STATE.JUMP, STATE.CLIMB]:
+            self.GamePlayer.clearXMovement()
+   
+        if action in [0, 3,4,5] and self.GamePlayer.getCurrentState() in [STATE.FLY, STATE.CLIMB]:
+            self.GamePlayer.setVelocityY(0)
 
         # Run one game step
         self._run_game_step()
@@ -219,6 +233,8 @@ class DangerousDaveEnv(gym.Env):
         #     if pressed_keys[key]:
         #         key_map[i] = 1
         # self.GamePlayer.movementInput(key_map)
+
+   
 
         # Update the player position in the level and treat collisions
         if self.GamePlayer.getCurrentState() != STATE.DESTROY:

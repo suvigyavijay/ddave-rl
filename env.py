@@ -154,6 +154,7 @@ class DangerousDaveEnv(gym.Env):
 
         # Run one game step
         self._run_game_step()
+        self.GamePlayer.clearXMovement()
 
         self.episode_clock += 1
         self.clock.tick()

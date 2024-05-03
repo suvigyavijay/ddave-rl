@@ -19,7 +19,7 @@ if __name__ == "__main__":
 
     # Manual assignment of arguments (replace with your desired values or use ipywidgets for interactivity)
     train = True  # equivalent to --train in argparse
-    evaluate = True  # equivalent to --evaluate in argparse
+    evaluate = False  # equivalent to --evaluate in argparse
     model_name = "Rainbow_DQN"  # manually specify or generate a name
    
     model_type = 'DQN'  # 'DQN', 'RND', or 'PPO'
@@ -39,7 +39,7 @@ if __name__ == "__main__":
     env_rep_type = 'text'  # 'text' or 'image'
     env = DangerousDaveEnv(render_mode="human", env_rep_type=env_rep_type,random_respawn=random_respawn,policy=policy)
     obs,info = env.reset()
-    total_timesteps=50000
+    total_timesteps=500000
     if model_type == 'DQN':
         if train:
             # Define and train the DQN agent

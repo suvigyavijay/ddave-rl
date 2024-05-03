@@ -2,4 +2,5 @@ pygame
 gymnasium
 stable_baselines3[extra]
 scikit-learn
+tensorboardX
 

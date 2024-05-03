@@ -1172,12 +1172,20 @@ class Player(Dynamic):
     Constants
     '''
 
+    scale_factor = 1.3
+
     MAX_SPEED_X = 0.6 
     MAX_SPEED_Y = 0.6
     X_SPEED_FACTOR = 0.75   #factor to be used when not falling (x speed only hits its maximum when falling)
     
     JUMP_SPEED = 0.8
     GRAVITY = 0.01          #gravity acceleration
+
+    # MAX_SPEED_X *= scale_factor
+    # MAX_SPEED_Y *= scale_factor
+    X_SPEED_FACTOR *= scale_factor
+    JUMP_SPEED *= scale_factor
+    GRAVITY *= scale_factor
     
     # TODO: Edit this to set the maximum number of lives
     MAX_LIVES = 0

@@ -128,7 +128,10 @@ venv/
 ENV/
 env.bak/
 venv.bak/
-
+.ppo
+.ppo/
+src/
+logs/
 # Spyder project settings
 .spyderproject
 .spyproject

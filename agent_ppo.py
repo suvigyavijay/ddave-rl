@@ -1,5 +1,5 @@
 from stable_baselines3 import  DQN,PPO
-from stable_baselines3.common.vec_env import DummyVecEnv,VecNormalize,SubprocVecEnv
+from stable_baselines3.common.vec_env import DummyVecEnv,VecNormalize,SubprocVecEnv,VecFrameStack
 from stable_baselines3.common.env_checker import check_env
 from env_new import DangerousDaveEnv
 import time, os
@@ -11,24 +11,27 @@ from stable_baselines3.ppo import MlpPolicy as MLP_PPO
 from stable_baselines3.dqn import MlpPolicy as MLP_DQN
 import random
 from stable_baselines3.common.env_checker import check_env
-from stable_baselines3.common.callbacks import EvalCallback
+from stable_baselines3.common.callbacks import EvalCallback,CallbackList
 from qlearning import NStepDoubleQLearningAgent
 import pickle
-
+from gymnasium.wrappers import FrameStack
+from stable_baselines3.common.vec_env import VecFrameStack
+from rllte.xplore.reward import RND,NGU,RE3
+from rllte_core import RLeXploreCallback 
 
 if __name__ == "__main__":
 
-   
+ 
     device = 'cuda'
     device = torch.device(device)
 
     # Manual assignment of arguments (replace with your desired values or use ipywidgets for interactivity)
     train = True  # equivalent to --train in argparse
     evaluate = False  # equivalent to --evaluate in argparse
-    model_name = "DQ_Learning"  # manually specify or generate a name
+    model_name = "PPO"  # manually specify or generate a name
     env_rep_type = 'text'  # 'text' or 'image'
-    model_type = 'DQ'  # 'DQN', 'RND', or 'PPO'
-    retrain = True  # equivalent to --retrain in argparse
+    model_type = 'PPO'  # 'DQN', 'RND', or 'PPO'
+    retrain = False  # equivalent to --retrain in argparse
 
     # Your existing logic below
     checkpoint_timestamp = int(time.time())
@@ -39,20 +42,23 @@ if __name__ == "__main__":
     tensorboard_log_run_name = '0'
     print(model_name,tensorboard_log)
     # Create the DangerousDaveEnv environment
-    random_respawn=True
+    random_respawn=False
     policy = 'MLP'
     num_env = 16
     if num_env > 1:
-        env = SubprocVecEnv([lambda : DangerousDaveEnv(render_mode="human", 
-        env_rep_type=env_rep_type,random_respawn=random_respawn,policy=policy) for _ in range(num_env)])
+        env = SubprocVecEnv([lambda : DangerousDaveEnv(render_mode="human", env_rep_type=env_rep_type,random_respawn=random_respawn,policy=policy) for _ in range(num_env)])
+        # env = VecFrameStack(env,4)
     else:
         env = DangerousDaveEnv(render_mode="human", env_rep_type=env_rep_type,random_respawn=random_respawn,policy=policy)
-    
-    total_timesteps=1000000
+        # stacked = FrameStack(env, num_stack=4,lz4_compress=False)
+        
+    total_timesteps=10000000
 
     eval_env = DangerousDaveEnv(render_mode="human", env_rep_type=env_rep_type,random_respawn=False,policy=policy)
+    # eval_env = SubprocVecEnv([lambda : eval_env])
+    # eval_env = VecFrameStack(eval_env,4)
     eval_callback = EvalCallback(eval_env, best_model_save_path="./logs/",
-                             log_path="./logs/", eval_freq=5000,
+                             log_path="./logs/", eval_freq=10000,
                              deterministic=True, render=False)
   
     if model_type == 'DQN':
@@ -86,35 +92,32 @@ if __name__ == "__main__":
         if train:
             # Define and train the PPO agent
             if retrain:
-                model = PPO.load("checkpoints/{}".format(model_name), env=env,tensorboard_log=tensorboard_log)
+                model = PPO.load("checkpoints/{}".format(model_name), env=env)
             else:
-                model = PPO(MLP_PPO, env, verbose=1, batch_size=256, policy_kwargs=policy_kwargs, device=device,
-                            tensorboard_log=tensorboard_log,ent_coef=0.001,n_steps=2048,gae_lambda=0.95)
-
-            model.learn(total_timesteps=total_timesteps, progress_bar=True,tb_log_name=tensorboard_log_run_name,log_interval=1)
+                irs = RE3(env, device=device,latent_dim=256,
+                        storage_size=1000)
+                explore_callback = RLeXploreCallback(irs)
+                model = PPO(MLP_PPO, env, verbose=1, batch_size=1024, device=device,
+                        n_steps=2048,policy_kwargs=mlp_policy_kwargs)
+        
+            callback = CallbackList([explore_callback, eval_callback])
+            model.learn(total_timesteps=total_timesteps, progress_bar=True,log_interval=1,callback=callback)
             model.save("checkpoints/{}".format(model_name))
-            # env = DangerousDaveEnv(render_mode="human", env_rep_type=env_rep_type,random_respawn=False)
-            # model = PPO.load("checkpoints/{}".format(model_name),tensorboard_log=tensorboard_log)
-            # model.set_env(env)
-            # obs,info = env.reset()
-            # model.learn(total_timesteps=total_timesteps, progress_bar=True,tb_log_name=tensorboard_log_run_name,log_interval=1)
-            # # Save the trained model if desired
-            # model.save("checkpoints/{}".format(model_name))
             
         if evaluate:
             # Evaluate the trained model
-            model = PPO.load("checkpoints/{}".format(model_name), env=env,tensorboard_log=tensorboard_log)
+            model = PPO.load("checkpoints/{}".format(model_name), env=env)
     
     elif model_type == 'DQ':
         if train:
             learning_rate = 0.0001
             max_epsilon = 1
-            min_epsilon = 0.001
-            epsilon_decay_rate = (min_epsilon/max_epsilon)**(1/(total_timesteps*1.3))
+            min_epsilon = 0.0001
+            epsilon_decay_rate = (min_epsilon/max_epsilon)**(1/total_timesteps)
             discount_factor = 0.99
-            n_steps = 50
+            n_steps = 100
             observation_space_dim = eval_env.observation_space.shape[0]
-            action_space_dim = eval_env.action_space.n
+            action_space_dim = 4
             if retrain:
                 model = NStepDoubleQLearningAgent(num_env=num_env,env=env,eval_env=eval_env,action_space_dim=action_space_dim,observation_space_dim=observation_space_dim,
                 max_epsilon=max_epsilon,min_epsilon=min_epsilon,epsilon_decay_rate=epsilon_decay_rate,discount_factor=discount_factor,

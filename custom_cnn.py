@@ -25,16 +25,13 @@ class CustomCNN(BaseFeaturesExtractor):
         # After another pooling layer, the size would be (32, 2, 25)
         self.conv3 = nn.Conv2d(32, 64, kernel_size=(1, 1), stride=1, padding=1)  # Output size: (64, 2, 25) - No padding
         # Flattening the output for the fully connected layer
-        self.fc1 = nn.Linear(22080, 1024)
-        self.fc2 = nn.Linear(1024, features_dim)  # Fully connected layer to output 128 features
+        self.fc1 = nn.Linear(3840, 256)
+        self.fc2 = nn.Linear(256, features_dim)  # Fully connected layer to output 128 features
+        self.m = nn.Flatten()
 
     def forward(self, x: th.Tensor) -> th.Tensor:
         x = th.relu(self.conv1(x))
-        x = th.relu(self.conv2(x))
-        x = th.relu(self.conv3(x))
-        
-        # Flatten the output for dense layer
-        x = x.view(-1, 22080)
+        x = self.m(x)
         x = self.fc1(x)
         x = th.relu(self.fc2(x))
         return x
@@ -51,17 +48,21 @@ class CustomMLP(BaseFeaturesExtractor):
         super().__init__(observation_space, features_dim)
         # We assume CxHxW images (channels first)
         # Re-ordering will be done by pre-preprocessing or wrapper
-        self.fc1 = nn.Linear(observation_space.shape[0], 1024)
-        self.fc2 = nn.Linear(1024, 1024)
-        self.fc3 = nn.Linear(1024, features_dim)  # Fully connected layer to output 128 features
+        self.fc1 = nn.Linear(observation_space.shape[0], 256)
+        self.fc2 = nn.Linear(256, features_dim)  # Fully connected layer to output 128 features
 
     def forward(self, x: th.Tensor) -> th.Tensor:
         x = th.relu(self.fc1(x))
         x = th.relu(self.fc2(x))
-        x = th.relu(self.fc3(x))
         return x
 
-policy_kwargs = dict(
+cnn_policy_kwargs = dict(
+    features_extractor_class=CustomCNN,
+    features_extractor_kwargs=dict(features_dim=128),
+    normalize_images = False
+)
+
+mlp_policy_kwargs = dict(
     features_extractor_class=CustomMLP,
     features_extractor_kwargs=dict(features_dim=256),
     normalize_images = False
