@@ -5,7 +5,7 @@ from ray.rllib.algorithms.appo import APPOConfig
 from ray.rllib.algorithms.sac import SACConfig
 from ray.rllib.algorithms import Algorithm
 from ray.tune.logger import pretty_print
-from env import DangerousDaveEnv
+from env_grid import DangerousDaveEnv
 from gymnasium.wrappers.frame_stack import FrameStack
 import time
 import os
@@ -55,52 +55,33 @@ if __name__ == "__main__":
 
     algo = (
         model_func()
-        .rollouts(num_rollout_workers=4)
+        .rollouts(num_rollout_workers=1)
         .resources(num_gpus=1)
         .environment(env=DangerousDaveEnv)
-        .training(
-            model=dict(
-                conv_filters=[
-                    # input image 96x60x1
-                    [32, [4, 3], 6], 
-                    [64, [4, 3], 4], 
-                    [128, [4, 3], 4], 
-                ],
-            ),
-        )
+        .training()
         .update_from_dict(
             {
                 "gamma": 0.99,
-                "train_batch_size": 128,
-                "replay_buffer_config": {
-                    "type": "PrioritizedReplayBuffer",
-                    "prioritized_replay_alpha": 0.7,
-                    "prioritized_replay_beta": 0.3,
-                    "prioritized_replay_eps": 1e-6,
-                    "max_size": 100000,
-                },
-
-
-                "num_atoms": 32,
-                "noisy": True,
-                "lr": 0.01,
-                "hiddens": [512],
-                "target_network_update_freq": 10,
-                "num_steps_sampled_before_learning_starts": 1000,
-                "n_step": 10,
-                "gpu": True,
-                "v_min": -1000.0,
-                "v_max": 1000.0,
-                
-                # Adding evaluation config
-                # "evaluation_interval": 0,  # Perform evaluation every 100 training iterations
-                # "evaluation_config": {
-                #     "explore": False  # No exploration during evaluation
+                # "train_batch_size": 128,
+                # "replay_buffer_config": {
+                #     "type": "PrioritizedReplayBuffer",
+                #     "prioritized_replay_alpha": 0.7,
+                #     "prioritized_replay_beta": 0.3,
+                #     "prioritized_replay_eps": 1e-6,
+                #     "max_size": 10000,
                 # },
-                # "evaluation_num_episodes": 1,
-                # "evaluation_num_workers": 1,
-                # "evaluation_parallel_to_training": True,
-                # "custom_evaluation_function": ray_eval
+
+
+                # "num_atoms": 32,
+                # "noisy": True,
+                # "lr": 0.001,
+                # "hiddens": [256],
+                # "target_network_update_freq": 1000,
+                # "num_steps_sampled_before_learning_starts": 10000,
+                # "n_step": 10,
+                # "gpu": True,
+                # "v_min": -1000.0,
+                # "v_max": 1000.0,
             }
         )
         .build()
@@ -110,7 +91,7 @@ if __name__ == "__main__":
         # Configure and train the DQN agent using Ray RLLib
 
         # Save the trained model if desired
-        for i in range(50000):
+        for i in range(1000):
             print("Training iteration: ", i)
             result = algo.train()
             # prints

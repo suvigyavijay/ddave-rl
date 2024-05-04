@@ -55,7 +55,7 @@ if __name__ == "__main__":
 
     algo = (
         model_func()
-        .rollouts(num_rollout_workers=4)
+        .rollouts(num_rollout_workers=60)
         .resources(num_gpus=1)
         .environment(env=DangerousDaveEnv)
         .training(

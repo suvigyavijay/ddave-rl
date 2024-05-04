@@ -564,7 +564,8 @@ class Map(object):
             return InteractiveScenery("tree", gfx_id, INTSCENERYTYPE.TREE)
         elif text_tile[0] == 'I':
             scores = [50, 100, 150, 200, 300, 500]
-            return Item("items", gfx_id, ITEM_SCORE)
+            return Scenery("scenery", 0)
+            # return Item("items", gfx_id, ITEM_SCORE)
         elif text_tile[0] == 'P':
             return Solid("pinkpipe", gfx_id)
         else:
