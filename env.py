@@ -17,7 +17,7 @@ EPISODE_TIMESTEPS = config.getint('GAME', 'EPISODE_TIMESTEPS')
 
 STICKY_ACTIONS = config.getboolean('GAME', 'STICKY_ACTIONS')
 LOCKED_DOOR = config.getboolean('GAME', 'LOCKED_DOOR')
-STEP_PENALTY = config.getint('GAME', 'STEP_PENALTY')
+STEP_PENALTY = config.getfloat('GAME', 'STEP_PENALTY')
 CURRENT_LEVEL = config.getint('GAME', 'CURRENT_LEVEL')
 
 PLAYER_RANDOM_SPAWN = config.getboolean('GAME', 'PLAYER_RANDOM_SPAWN')
