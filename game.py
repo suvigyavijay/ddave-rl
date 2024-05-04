@@ -1,4 +1,4 @@
-from ddave.utils_grid import *
+from ddave.utils import *
 from ddave.helper import *
 
 '''
@@ -50,6 +50,8 @@ def main():
             
             spawner_pos_x = Level.getPlayerSpawnerPosition(current_spawner_id)[0]
             game_screen.setXPosition(spawner_pos_x - 10, Level.getWidth())
+            if PLAYER_RANDOM_SPAWN:
+                (player_position_x, player_position_y) = Level.getRandomPlayerSpawnerPosition()
 
             # UI Inits
             score_ui = 0 #initial score. Everytime it changes, we update the ui
@@ -208,10 +210,10 @@ def main():
                 option = showWarpZone(current_level_number, game_screen, GamePlayer, tileset, ui_tileset)
                 ended_game = option
                 game_open = not option
-            elif ended_level and not ended_game:
-                option = showInterpic(current_level_number, game_screen, GamePlayer, tileset, ui_tileset)
-                ended_game = option
-                game_open = not option
+            # elif ended_level and not ended_game:
+            #     option = showInterpic(current_level_number, game_screen, GamePlayer, tileset, ui_tileset)
+            #     ended_game = option
+            #     game_open = not option
                 
         savePlayerScore(GamePlayer.getScore(), game_screen, tileset)
         showScores(game_screen, tileset)

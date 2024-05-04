@@ -1,7 +1,7 @@
 import pygame
 from os import listdir, path
 from os.path import isfile, join
-from ddave.utils_grid import *
+from ddave.utils import *
 
 '''
 Tile and gfxs

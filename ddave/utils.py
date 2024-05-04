@@ -1,6 +1,6 @@
 from math import floor
 from enum import Enum
-from random import randint, random
+from random import randint, random, choice
 from os import path
 import pygame
 import configparser
@@ -28,6 +28,15 @@ SCREEN_HEIGHT = config.getint('GAME', 'SCREEN_HEIGHT') * TILE_SCALE_FACTOR
 NUM_OF_LEVELS = config.getint('GAME', 'NUM_OF_LEVELS')
 ITEM_SCORE = config.getint('GAME', 'ITEM_SCORE')
 TROPHY_SCORE = config.getint('GAME', 'TROPHY_SCORE')
+
+ENABLE_UI = config.getboolean('GAME', 'ENABLE_UI')
+SHOW_GRID = config.getboolean('GAME', 'SHOW_GRID')
+ENABLE_ITEMS = config.getboolean('GAME', 'ENABLE_ITEMS')
+LOCKED_DOOR = config.getboolean('GAME', 'LOCKED_DOOR')
+GRIDWORLD_MECHANICS = config.getboolean('GAME', 'GRIDWORLD_MECHANICS')
+
+PLAYER_RANDOM_SPAWN = config.getboolean('GAME', 'PLAYER_RANDOM_SPAWN')
+TROPHY_RANDOM_SPAWN = config.getboolean('GAME', 'TROPHY_RANDOM_SPAWN')
 
 class DIRECTION(Enum):
     LEFT = -1
@@ -120,40 +129,48 @@ class Screen(object):
         return (x >= self.x_pos) and (x < self.x_pos + self.getWidthInTiles())
 
     def printTile(self, x, y, tile_graphic):
-        scaled_x = x * TILE_SCALE_FACTOR
-        scaled_y = y * TILE_SCALE_FACTOR    
+        if ENABLE_UI:
+            scaled_x = x * TILE_SCALE_FACTOR
+            scaled_y = y * TILE_SCALE_FACTOR    
 
-        self.display.blit(tile_graphic, (scaled_x, scaled_y))
+            self.display.blit(tile_graphic, (scaled_x, scaled_y))
+            if SHOW_GRID:
+                # draw a rectangle around the tile
+                pygame.draw.rect(self.display, (255, 255, 255), 
+                                (scaled_x, scaled_y, WIDTH_OF_MAP_NODE * TILE_SCALE_FACTOR, HEIGHT_OF_MAP_NODE * TILE_SCALE_FACTOR), 1)
  
     def printMap(self, map, tileset):
-        for y, row in enumerate(map.getNodeMatrix()):
-            for x, col in enumerate(row):
-                tile = map.getNode(x,y)
-                absolute_y = y * HEIGHT_OF_MAP_NODE
-                
-                # won't print other tiles that aren't in the game screen (considering the current x position)
-                if self.isXInScreen(x):
-                    adjusted_x = x - self.x_pos                                     #print the tile accordingly to the screen shift
-                    absolute_x = adjusted_x * WIDTH_OF_MAP_NODE                     #store the x pos in pixels
-                    tile_graphic = tile.getGraphic(tileset)                         #get the tile graphic
-                    self.printTile(absolute_x, absolute_y, tile_graphic)
+        if ENABLE_UI:
+            for y, row in enumerate(map.getNodeMatrix()):
+                for x, col in enumerate(row):
+                    tile = map.getNode(x,y)
+                    absolute_y = y * HEIGHT_OF_MAP_NODE
+                    
+                    # won't print other tiles that aren't in the game screen (considering the current x position)
+                    if self.isXInScreen(x):
+                        adjusted_x = x - self.x_pos                                     #print the tile accordingly to the screen shift
+                        absolute_x = adjusted_x * WIDTH_OF_MAP_NODE                     #store the x pos in pixels
+                        tile_graphic = tile.getGraphic(tileset)                         #get the tile graphic
+                        self.printTile(absolute_x, absolute_y, tile_graphic)
 
     def printPlayer(self, player, player_x, player_y, tileset):
-        player_graphic = player.getGraphic(tileset) 
-        player.copyDirectionToSprite()
-            
-        if (player.isSpriteFlipped()):
-            player_graphic = pygame.transform.flip(player_graphic,1,0)
+        if ENABLE_UI:
+            player_graphic = player.getGraphic(tileset) 
+            player.copyDirectionToSprite()
                 
-        self.printTile(player_x, player_y, player_graphic)
+            if (player.isSpriteFlipped()):
+                player_graphic = pygame.transform.flip(player_graphic,1,0)
+                    
+            self.printTile(player_x, player_y, player_graphic)
                     
     def printTitlepicBorder(self, tileset):
-        for x in range(0, 20):
-            for y in range(0, 11):
-                if (y < 4) or (x < 5) or (x > 14):
-                    absolute_x = x * WIDTH_OF_MAP_NODE
-                    absolute_y = y * HEIGHT_OF_MAP_NODE
-                    self.printTile(absolute_x, absolute_y, Scenery().getGraphic(tileset))
+        if ENABLE_UI:
+            for x in range(0, 20):
+                for y in range(0, 11):
+                    if (y < 4) or (x < 5) or (x > 14):
+                        absolute_x = x * WIDTH_OF_MAP_NODE
+                        absolute_y = y * HEIGHT_OF_MAP_NODE
+                        self.printTile(absolute_x, absolute_y, Scenery().getGraphic(tileset))
                     
     def moveScreenX(self, map, amount, tileset, ui_tileset, player, level_number):
         screen_shift = 0
@@ -189,32 +206,36 @@ class Screen(object):
     '''
         
     def printOverlays(self, ui_tileset):
-        top_overlay = Scenery("topoverlay", 0)
-        bottom_overlay = Scenery("bottomoverlay", 0)
-        self.printTile(0, 0, top_overlay.getGraphic(ui_tileset))
-        self.printTile(0, BOTTOM_OVERLAY_POS, bottom_overlay.getGraphic(ui_tileset))
+        if ENABLE_UI:
+            top_overlay = Scenery("topoverlay", 0)
+            bottom_overlay = Scenery("bottomoverlay", 0)
+            self.printTile(0, 0, top_overlay.getGraphic(ui_tileset))
+            self.printTile(0, BOTTOM_OVERLAY_POS, bottom_overlay.getGraphic(ui_tileset))
                     
     def printText(self, text, x, y):
-        graphic_text = self.font.render(text, 1, (255, 255, 255))
+        if ENABLE_UI:
+            graphic_text = self.font.render(text, 1, (255, 255, 255))
 
-        scaled_x = x * TILE_SCALE_FACTOR
-        scaled_y = y * TILE_SCALE_FACTOR
-        
-        self.display.blit(graphic_text, (scaled_x, scaled_y))
+            scaled_x = x * TILE_SCALE_FACTOR
+            scaled_y = y * TILE_SCALE_FACTOR
+            
+            self.display.blit(graphic_text, (scaled_x, scaled_y))
         
     def printTextAlignedInCenter(self, text, y):
-        graphic_text = self.font.render(text, 1, (255, 255, 255))
-        graphic_text_width = graphic_text.get_rect().width
-        
-        scaled_x = self.width/2 - graphic_text_width/2
-        scaled_y = y * TILE_SCALE_FACTOR
-        
-        self.display.blit(graphic_text, (scaled_x, scaled_y))      
+        if ENABLE_UI:
+            graphic_text = self.font.render(text, 1, (255, 255, 255))
+            graphic_text_width = graphic_text.get_rect().width
+            
+            scaled_x = self.width/2 - graphic_text_width/2
+            scaled_y = y * TILE_SCALE_FACTOR
+            
+            self.display.blit(graphic_text, (scaled_x, scaled_y))      
      
     def printUi(self, ui_tileset, player, level_number):
-        self.updateUiScore(player.getScore(), ui_tileset)
-        self.updateUiLevel(level_number, ui_tileset)
-        self.updateUiDaves(player.getLives(), ui_tileset)
+        if ENABLE_UI:
+            self.updateUiScore(player.getScore(), ui_tileset)
+            self.updateUiLevel(level_number, ui_tileset)
+            self.updateUiDaves(player.getLives(), ui_tileset)
 
     def updateUiScore(self, score, ui_tileset):
         #score text
@@ -490,6 +511,25 @@ class Map(object):
     Level construction
     '''
     
+    def switchItemPositions(self, item1, item2):
+        # Find positions of trophy (TR) and the selected item
+        item1pos = self.getPositionInTextMatrix(item1)
+        item2pos = self.getPositionInTextMatrix(item2)
+        
+        # Select random positions for trophy and the item
+        item1pos = choice(item1pos)
+        item2pos = choice(item2pos)
+        
+        print("Switching positions of " + item1 + " from " + str(item1pos) + " and " + item2 + " from " + str(item2pos))
+        
+        # Switch positions
+        self.textMatrix[item1pos[0]][item1pos[1]], self.textMatrix[item2pos[0]][item2pos[1]] = self.textMatrix[item2pos[0]][item2pos[1]], self.textMatrix[item1pos[0]][item1pos[1]]
+
+    def getPositionInTextMatrix(self, item):
+        possible_pos = [(i, j) for i, row in enumerate(self.textMatrix) for j, val in enumerate(row) if val == item]
+        possible_pos = [pos for pos in possible_pos if pos[0] > 0]
+        return possible_pos
+    
     def buildLevel(self, level_number):
         #open the level in the txt
         level_loc = path.join(path.dirname(path.abspath(__file__)), "levels/")
@@ -505,15 +545,33 @@ class Map(object):
         
         #allocate matrix
         self.buildMapMatrix()
+        
+        self.textMatrix = [["  " for i in range(self.width)] for j in range(self.height)]
 
         #for each node, set it accordingly
         for y, line in enumerate(textmap.readlines()):
             x = 0
             while (x < self.width):
                 text_tile = line[(3*x):(3*x + 2)]
-                tile_type = self.tileFromText(text_tile)
-                self.setNodeTile(x, y, tile_type)
+                self.textMatrix[y][x] = text_tile
                 x += 1
+                
+        if TROPHY_RANDOM_SPAWN:
+            item = "I" + str(randint(0, 2))
+            self.switchItemPositions("TR", item)
+        
+        for y, line in enumerate(self.textMatrix):
+            for x, col in enumerate(line):
+                tile_type = self.tileFromText(self.textMatrix[y][x])
+                self.setNodeTile(x, y, tile_type)
+        
+        # print text map
+        # for y, line in enumerate(self.textMatrix):
+        #     for x, col in enumerate(line):
+        #         if x < 20:
+        #             print(self.textMatrix[y][x], end=" ")
+        #     print("\n", end="")
+        # print("Level " + str(level_number) + " loaded.")
 
     def initPlayerPositions(self, spawner_id, player): 
         player.setCurrentState(STATE.BLINK)
@@ -528,8 +586,19 @@ class Map(object):
         player_position_y = HEIGHT_OF_MAP_NODE * playerPosition[1]
         
         return (player_position_x, player_position_y)
+    
+    def getRandomPlayerSpawnerPosition(self):
+        self.switchItemPositions("p0", "  ")
+        new_player_pos = self.getPositionInTextMatrix("p0")[0]
+        
+        player_position_x = WIDTH_OF_MAP_NODE * new_player_pos[1]
+        player_position_y = HEIGHT_OF_MAP_NODE * new_player_pos[0]
+        
+        return (player_position_x, player_position_y)
         
     def tileFromText(self, text_tile):
+        if len(text_tile) == 0:
+            text_tile = "   "
         #if the tile has an index, store it
         try:
             gfx_id = int(text_tile[1])
@@ -563,9 +632,10 @@ class Map(object):
         elif text_tile[0] == 'E':
             return InteractiveScenery("tree", gfx_id, INTSCENERYTYPE.TREE)
         elif text_tile[0] == 'I':
-            scores = [50, 100, 150, 200, 300, 500]
-            return Scenery("scenery", 0)
-            # return Item("items", gfx_id, ITEM_SCORE)
+            if ENABLE_ITEMS:
+                return Item("items", gfx_id, ITEM_SCORE)
+            else:
+                return Scenery("scenery", 0)
         elif text_tile[0] == 'P':
             return Solid("pinkpipe", gfx_id)
         else:
@@ -1385,8 +1455,12 @@ class Player(Dynamic):
 
         element = level.getNode(x, y)
         #player has trophy and reached the door
-        if element.getType() == INTSCENERYTYPE.GOAL and self.inventory["trophy"] == 1:
-            self.setCurrentState(STATE.ENDMAP)
+        if element.getType() == INTSCENERYTYPE.GOAL:
+            if LOCKED_DOOR:
+                if self.inventory["trophy"] == 1:
+                    self.setCurrentState(STATE.ENDMAP)
+            else:
+                self.setCurrentState(STATE.ENDMAP)
         #player collided with a hazard
         elif element.getType() == INTSCENERYTYPE.HAZARD:
             self.setCurrentState(STATE.DESTROY)
@@ -1433,7 +1507,11 @@ class Player(Dynamic):
             self.setFallingState()
 
         ## Move X: START
-        player_newx = player_x + self.velocity_x * self.direction_x.value                   # Tries to walk to the direction the player's going
+        player_newx = player_x
+        if GRIDWORLD_MECHANICS:
+            player_newx = player_x + 1 * self.direction_x.value
+        else:
+            player_newx = player_x + self.velocity_x * self.direction_x.value                   # Tries to walk to the direction the player's going
         solid_collision = level.isPlayerCollidingWithSolid(player_newx, player_y)
 
         if solid_collision:                                                                 # If a collision occurs,
@@ -1443,7 +1521,16 @@ class Player(Dynamic):
         ## Move X: END
 
         ## Move Y: START
-        player_newy = player_y + self.velocity_y
+        player_newy = player_y
+        if GRIDWORLD_MECHANICS:
+            if self.velocity_y < 0:
+                player_newy = player_y - 0.4
+            elif self.velocity_y > 0:
+                player_newy = player_y + 0.4
+            else:
+                player_newy = player_y
+        else:
+            player_newy = player_y + self.velocity_y
 
         # Check for solid collisions
         solid_collision = level.isPlayerCollidingWithSolid(player_newx, player_newy)
@@ -1512,7 +1599,7 @@ class Player(Dynamic):
         else: ErrorInvalidValue()
 
     def setScore(self, score):
-        if isinstance(score, int) and score >= 0:
+        if isinstance(score, int):
             self.score = score
         else: ErrorInvalidValue()
         
