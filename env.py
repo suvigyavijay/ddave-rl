@@ -316,7 +316,7 @@ if __name__ == '__main__':
     env = DangerousDaveEnv(env_rep_type='image')
     obs, _ = env.reset()
     print("Observation shape: ", obs.shape)
-    
+    episode_reward = 0
     for i in range(10000):
         print("Step: ", i)
         action = 6
@@ -358,10 +358,11 @@ if __name__ == '__main__':
         elif action == 6:
             print("Action: No-op")
         obs, reward, done, truncated, info = env.step(action)
-        
+        episode_reward += reward
         env.render()
         
         if done:
             print("Episode finished after {} timesteps".format(i+1))
+            print("Episode reward: ", episode_reward)
             break
     env.close()

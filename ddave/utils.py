@@ -244,7 +244,7 @@ class Screen(object):
         
         #score amount
         numbers = Scenery("numbers", 0)
-        leadingzeroes_score = str(score).zfill(5)
+        leadingzeroes_score = str(abs(score)).zfill(5)
         for digit in range(5):
             numbers.setGfxId(int(leadingzeroes_score[digit]))            
             self.printTile(60 + 8 * digit, 0, numbers.getGraphic(ui_tileset))
