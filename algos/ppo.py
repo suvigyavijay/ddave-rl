@@ -11,6 +11,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.distributions.categorical import Categorical
 import tempfile
+from algos.utils import layer_init
 
 config = configparser.ConfigParser()
 config.read('algo.cfg')
@@ -23,23 +24,18 @@ class Agent(nn.Module):
     def __init__(self, envs):
         super().__init__()
         self.network = nn.Sequential(
-            self.layer_init(nn.Conv2d(4, 32, 8, stride=4)),
+            layer_init(nn.Conv2d(4, 32, 8, stride=4)),
             nn.ReLU(),
-            self.layer_init(nn.Conv2d(32, 64, 4, stride=2)),
+            layer_init(nn.Conv2d(32, 64, 4, stride=2)),
             nn.ReLU(),
-            self.layer_init(nn.Conv2d(64, 64, 3, stride=1)),
+            layer_init(nn.Conv2d(64, 64, 3, stride=1)),
             nn.ReLU(),
             nn.Flatten(),
-            self.layer_init(nn.Linear(64 * 8 * 4, 512)),
+            layer_init(nn.Linear(64 * 8 * 4, 512)),
             nn.ReLU(),
         )
-        self.actor = self.layer_init(nn.Linear(512, envs.single_action_space.n), std=0.01)
-        self.critic = self.layer_init(nn.Linear(512, 1), std=1)
-        
-    def layer_init(layer, std=np.sqrt(2), bias_const=0.0):
-        torch.nn.init.orthogonal_(layer.weight, std)
-        torch.nn.init.constant_(layer.bias, bias_const)
-        return layer
+        self.actor = layer_init(nn.Linear(512, envs.single_action_space.n), std=0.01)
+        self.critic = layer_init(nn.Linear(512, 1), std=1)
 
     def get_value(self, x):
         return self.critic(self.network(x / 255.0))
@@ -54,16 +50,14 @@ class Agent(nn.Module):
     
     
 class PPO:
-    def __init__(self, envs, model_name, total_timesteps=10000000, num_steps=1000, num_envs=8, learning_rate=1e-3, 
+    def __init__(self, envs, eval_env, model_name, total_timesteps=10000000, num_steps=1000, num_envs=8, learning_rate=1e-3, 
                  gamma=0.99, gae_lambda=0.95, clip_coef=0.1, ent_coef=0.01, vf_coef=0.5, max_grad_norm=0.5, 
                  update_epochs=4, norm_adv=True, clip_vloss=True, anneal_lr=True):
         self.envs = envs
+        self.eval_env = eval_env
         self.model_name = model_name
         self.num_steps = num_steps
         self.num_envs = num_envs
-        self.batch_size = self.num_envs * self.num_steps
-        self.num_iterations = total_timesteps // self.batch_size
-        self.minibatch_size = self.batch_size // 4
         self.learning_rate = learning_rate
         self.gamma = gamma
         self.gae_lambda = gae_lambda
@@ -76,9 +70,13 @@ class PPO:
         self.clip_vloss = clip_vloss
         self.anneal_lr = anneal_lr
         
+        self.batch_size = self.num_envs * self.num_steps
+        self.minibatch_size = self.batch_size // 4
+        self.num_iterations = total_timesteps // self.batch_size
+        
         self.agent = Agent(envs).to(device)
         self.optimizer = optim.Adam(self.agent.parameters(), lr=self.learning_rate, eps=1e-5)
-        self.checkpoint_dir = f"checkpoints/{model_name}"
+        self.checkpoint_dir = f"checkpoint/{model_name}"
         self.reward_dir = f"rewards/{model_name}"
         os.makedirs(self.checkpoint_dir, exist_ok=True)
         os.makedirs(self.reward_dir, exist_ok=True)
@@ -218,27 +216,32 @@ class PPO:
             var_y = np.var(y_true)
             explained_var = np.nan if var_y == 0 else 1 - np.var(y_true - y_pred) / var_y
 
-            # record rewards for plotting purposes
+            # print the training statistics
+            print(f"Iteration: {iteration}")
             print("Steps / Second:", int(global_step / (time.time() - start_time)))
             
             # save the model, rewards and evaluate the model
             if iteration % 100 == 0:
+                print("Saving the model and rewards...")
                 self.save_checkpoint(iteration)
                 self.save_rewards(episode_rewards)
+                print("Evaluating the model...")
                 self.evaluate(iteration)
                 
     def evaluate(self, iteration):
         episode_reward = 0
         done = False
         
-        obs = torch.Tensor(self.envs.reset()).to(device)
+        obs = self.eval_env.reset()
+        obs = torch.Tensor(np.repeat(obs, self.num_envs, axis=0)).to(device)
         tmp_frame_dir = tempfile.mkdtemp()
         frame_number = 0
         
         while not done:
             action, _, _, _ = self.agent.get_action_and_value(obs)
-            obs, reward, done, _ = self.envs.step(action.cpu().numpy())
-            episode_reward += reward
+            obs, reward, done, _ = self.eval_env.step(action.cpu().numpy()[:1])
+            obs = torch.Tensor(np.repeat(obs, self.num_envs, axis=0)).to(device)
+            episode_reward += reward[0]
             
             # save the current frame
             frame_image = (pygame.display.get_surface())
