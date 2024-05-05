@@ -25,6 +25,7 @@ if __name__ == "__main__":
     argparser.add_argument("--model-name", action="store", help="Load the latest model")
     argparser.add_argument("--env-rep-type", action="store", default="image", choices=["text", "image", "grid"], help="Choose the environment representation type")
     argparser.add_argument("--model-type", action="store", default="rnd", choices=["ppo", "rnd"], help="Choose the model type")
+    argparser.add_argument("--model-load-path", action="store", help="Provide path to load model")
     args = argparser.parse_args()
     if args.model_type is None:
         print("Please specify the model type")
@@ -54,6 +55,9 @@ if __name__ == "__main__":
     elif args.model_type == "rnd":
         total_timesteps = int(config['RND']['TOTAL_TIMESTEPS'])
         algo = RND(envs, eval_env, model_name, total_timesteps=total_timesteps, num_envs=NUM_ENVS, num_steps=NUM_STEPS)
+
+    if args.model_load_path is not None:
+        algo.load_checkpoint(args.model_load_path)
 
     if args.train:
         algo.train()

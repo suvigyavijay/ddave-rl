@@ -87,11 +87,8 @@ class PPO:
     def save_rewards(self, rewards):
         np.save(f"{self.reward_dir}/rewards.npy", rewards)
         
-    def load_checkpoint(self, iteration=None):
-        # if iteration is not provided, load the latest model
-        if iteration is None:
-            iteration = max([int(f.split("_")[1].split(".")[0]) for f in os.listdir(self.checkpoint_dir)])
-        self.agent.load_state_dict(torch.load(f"{self.checkpoint_dir}/model_{iteration}.pt"))
+    def load_checkpoint(self, path):
+        self.agent.load_state_dict(torch.load(path))
         
     def train(self):
         episode_rewards = []

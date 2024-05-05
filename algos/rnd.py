@@ -189,8 +189,8 @@ class RND:
     def save_rewards(self, rewards):
         np.save(f"{self.reward_dir}/rewards.npy", rewards)
         
-    def load_checkpoint(self, name):
-        checkpoint = torch.load(os.path.join(self.checkpoint_dir, name))
+    def load_checkpoint(self, path):
+        checkpoint = torch.load(path)
         self.agent.load_state_dict(checkpoint["agent"])
         self.rnd_model.load_state_dict(checkpoint["rnd_model"])
         self.optimizer.load_state_dict(checkpoint["optimizer"])
@@ -423,14 +423,14 @@ class RND:
                 print("Evaluating the model...")
                 self.evaluate(update)
 
-            if avg_returns and np.average(avg_returns) > 360:
-                print("Early Stopping...")
-                print("Saving the model and rewards...")
-                self.save_checkpoint(update)
-                self.save_rewards(episode_rewards)
-                print("Evaluating the model...")
-                self.evaluate(update)
-                break
+            # if avg_returns and np.average(avg_returns) > 360:
+            #     print("Early Stopping...")
+            #     print("Saving the model and rewards...")
+            #     self.save_checkpoint(update)
+            #     self.save_rewards(episode_rewards)
+            #     print("Evaluating the model...")
+            #     self.evaluate(update)
+            #     break
                 
     def evaluate(self, update):
         episode_reward = 0

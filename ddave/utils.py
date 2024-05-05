@@ -26,6 +26,7 @@ SCREEN_WIDTH = config.getint('GAME', 'SCREEN_WIDTH') * TILE_SCALE_FACTOR
 SCREEN_HEIGHT = config.getint('GAME', 'SCREEN_HEIGHT') * TILE_SCALE_FACTOR
 
 NUM_OF_LEVELS = config.getint('GAME', 'NUM_OF_LEVELS')
+NUM_LIVES = config.getint('GAME', 'NUM_LIVES')
 ITEM_SCORE = config.getint('GAME', 'ITEM_SCORE')
 TROPHY_SCORE = config.getint('GAME', 'TROPHY_SCORE')
 
@@ -1233,7 +1234,7 @@ class Player(Dynamic):
     GRAVITY = 0.01          #gravity acceleration
     
     # TODO: Edit this to set the maximum number of lives
-    MAX_LIVES = 0
+    MAX_LIVES = NUM_LIVES
 
     '''
     Constructors
