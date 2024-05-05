@@ -183,7 +183,7 @@ class RND:
                 "rnd_model": self.rnd_model.state_dict(),
                 "optimizer": self.optimizer.state_dict(),
             },
-            os.path.join(self.checkpoint_dir, name),
+            os.path.join(self.checkpoint_dir, str(name)),
         )
         
     def save_rewards(self, rewards):
@@ -416,12 +416,21 @@ class RND:
             print("Steps / Second:", int(global_step / (time.time() - start_time)))
             
             # save the model, rewards and evaluate the model
-            if update % 100 == 0:
+            if update % 20 == 0:
                 print("Saving the model and rewards...")
                 self.save_checkpoint(update)
                 self.save_rewards(episode_rewards)
                 print("Evaluating the model...")
                 self.evaluate(update)
+
+            if avg_returns and np.average(avg_returns) > 360:
+                print("Early Stopping...")
+                print("Saving the model and rewards...")
+                self.save_checkpoint(update)
+                self.save_rewards(episode_rewards)
+                print("Evaluating the model...")
+                self.evaluate(update)
+                break
                 
     def evaluate(self, update):
         episode_reward = 0
@@ -433,7 +442,7 @@ class RND:
         frame_number = 0
         
         while not done:
-            action, _, _, _ = self.agent.get_action_and_value(obs)
+            action, _, _, _, _ = self.agent.get_action_and_value(obs)
             obs, reward, done, _ = self.eval_env.step(action.cpu().numpy()[:1])
             obs = torch.Tensor(np.repeat(obs, self.num_envs, axis=0)).to(device)
             episode_reward += reward[0]

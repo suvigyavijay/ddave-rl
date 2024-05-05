@@ -221,12 +221,21 @@ class PPO:
             print("Steps / Second:", int(global_step / (time.time() - start_time)))
             
             # save the model, rewards and evaluate the model
-            if iteration % 100 == 0:
+            if iteration % 20 == 0:
                 print("Saving the model and rewards...")
                 self.save_checkpoint(iteration)
                 self.save_rewards(episode_rewards)
                 print("Evaluating the model...")
                 self.evaluate(iteration)
+
+            if avg_returns and np.average(avg_returns) > 360:
+                print("Early Stopping...")
+                print("Saving the model and rewards...")
+                self.save_checkpoint(iteration)
+                self.save_rewards(episode_rewards)
+                print("Evaluating the model...")
+                self.evaluate(iteration)
+                break
                 
     def evaluate(self, iteration):
         episode_reward = 0
