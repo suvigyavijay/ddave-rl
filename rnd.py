@@ -251,18 +251,6 @@ if __name__ == "__main__":
     args.minibatch_size = int(args.batch_size // args.num_minibatches)
     args.num_iterations = args.total_timesteps // args.batch_size
     run_name = f"{args.env_id}__{args.exp_name}__{args.seed}__{int(time.time())}"
-    if args.track:
-        import wandb
-
-        wandb.init(
-            project=args.wandb_project_name,
-            entity=args.wandb_entity,
-            sync_tensorboard=True,
-            config=vars(args),
-            name=run_name,
-            monitor_gym=True,
-            save_code=True,
-        )
 
     # TRY NOT TO MODIFY: seeding
     random.seed(args.seed)
@@ -515,4 +503,3 @@ if __name__ == "__main__":
         print("SPS:", int(global_step / (time.time() - start_time)))
 
     envs.close()
-    # writer.close()
