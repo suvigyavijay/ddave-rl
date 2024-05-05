@@ -6,21 +6,19 @@ from collections import deque
 from dataclasses import dataclass
 
 import gymnasium as gym
-from gymnasium.wrappers.frame_stack import FrameStack
-# import gym
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 import tyro
-import envpool
+
 from gymnasium.wrappers.normalize import RunningMeanStd
 from torch.distributions.categorical import Categorical
-# from torch.utils.tensorboard import SummaryWriter
-from stable_baselines3.common.vec_env import SubprocVecEnv
 
-from env_grid import DangerousDaveEnv
+from stable_baselines3.common.vec_env import SubprocVecEnv
+from gymnasium.wrappers.frame_stack import FrameStack
+from env import DangerousDaveEnv
 
 
 @dataclass
@@ -265,11 +263,6 @@ if __name__ == "__main__":
             monitor_gym=True,
             save_code=True,
         )
-    # writer = SummaryWriter(f"runs/{run_name}")
-    # writer.add_text(
-    #     "hyperparameters",
-    #     "|param|value|\n|-|-|\n%s" % ("\n".join([f"|{key}|{value}|" for key, value in vars(args).items()])),
-    # )
 
     # TRY NOT TO MODIFY: seeding
     random.seed(args.seed)
@@ -280,21 +273,6 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() and args.cuda else "cpu")
 
     # env setup
-    # envs = envpool.make(
-    #     args.env_id,
-    #     env_type="gym",
-    #     num_envs=args.num_envs,
-    #     episodic_life=True,
-    #     reward_clip=True,
-    #     seed=args.seed,
-    #     repeat_action_probability=0.25,
-    # )
-
-    # envs = gym.vector.AsyncVectorEnv([
-    #     DangerousDaveEnv for _ in range(args.num_envs)
-    # ])
-
-    # envs = DangerousDaveEnv()
     envs = SubprocVecEnv([lambda : FrameStack(DangerousDaveEnv(env_rep_type="image"), 4) for _ in range(args.num_envs)])
 
     envs.num_envs = args.num_envs
@@ -395,14 +373,6 @@ if __name__ == "__main__":
                     print(
                         f"global_step={global_step}, episodic_return={envs.returned_episode_returns[idx]}, curiosity_reward={np.mean(curiosity_rewards[step].cpu().numpy())}"
                     )
-                    # writer.add_scalar("charts/avg_episodic_return", epi_ret, global_step)
-                    # writer.add_scalar("charts/episodic_return", envs.episode_returns[idx], global_step)
-                    # writer.add_scalar(
-                    #     "charts/episode_curiosity_reward",
-                    #     curiosity_rewards[step][idx],
-                    #     global_step,
-                    # )
-                    # writer.add_scalar("charts/episodic_length", envs.episode_lengths[idx], global_step)
 
         curiosity_reward_per_env = np.array(
             [discounted_reward.update(reward_per_step) for reward_per_step in curiosity_rewards.cpu().data.numpy().T]
@@ -542,15 +512,7 @@ if __name__ == "__main__":
                     break
 
         # TRY NOT TO MODIFY: record rewards for plotting purposes
-        # writer.add_scalar("charts/learning_rate", optimizer.param_groups[0]["lr"], global_step)
-        # writer.add_scalar("losses/value_loss", v_loss.item(), global_step)
-        # writer.add_scalar("losses/policy_loss", pg_loss.item(), global_step)
-        # writer.add_scalar("losses/entropy", entropy_loss.item(), global_step)
-        # writer.add_scalar("losses/old_approx_kl", old_approx_kl.item(), global_step)
-        # writer.add_scalar("losses/fwd_loss", forward_loss.item(), global_step)
-        # writer.add_scalar("losses/approx_kl", approx_kl.item(), global_step)
         print("SPS:", int(global_step / (time.time() - start_time)))
-        # writer.add_scalar("charts/SPS", int(global_step / (time.time() - start_time)), global_step)
 
     envs.close()
     # writer.close()

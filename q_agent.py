@@ -16,8 +16,6 @@ import pickle
 
 
 if __name__ == "__main__":
-
-   
     device = 'cuda'
     device = torch.device(device)
 

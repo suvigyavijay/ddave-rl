@@ -81,7 +81,7 @@ class DangerousDaveEnv(gym.Env):
                                 'tentacles', 'gun', 'jetpack', 'moonstars', 'player']
         
         if self.env_rep_type == 'image':
-            self.observation_space = spaces.Box(low=0, high=255, shape=(int(SCREEN_WIDTH/RESCALE_FACTOR), int(SCREEN_HEIGHT/RESCALE_FACTOR)), dtype=np.uint8)
+            self.observation_space = spaces.Box(low=0, high=255, shape=(int(SCREEN_WIDTH/RESCALE_FACTOR), int(SCREEN_HEIGHT/RESCALE_FACTOR)), dtype=np.float32)
         elif self.env_rep_type == 'text':
             self.observation_space = spaces.Box(low=0, high=len(all_possible_labels)-1,shape=(box_shape[0] * box_shape[1],), dtype=np.uint8)
         elif self.env_rep_type == 'grid':
