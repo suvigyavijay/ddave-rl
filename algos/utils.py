@@ -2,7 +2,20 @@ import numpy as np
 import gymnasium as gym
 import torch
 
-class RecordEpisodeStatistics(gym.Wrapper):
+from gymnasium.core import Wrapper
+from typing import Any
+
+class WrapperMod(Wrapper):
+    def __init__(self, env: gym.Env):
+        super().__init__(env)
+        
+    def reset(
+        self, *, seed: int | None = None, options: dict[str, Any] | None = None
+    ):
+        """Ignore the seed and options arguments."""
+        return self.env.reset()
+
+class RecordEpisodeStatistics(WrapperMod):
     def __init__(self, env):
         super().__init__(env)
         self.num_envs = getattr(env, "num_envs", 1)

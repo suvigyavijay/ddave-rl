@@ -18,8 +18,10 @@ Dangerous Dave is a challenging side-scrolling platform game where the player co
     cd ddave-rl
     ```
 
-3. Install the required dependencies:
+3. Create a virtual environment and install the dependencies:
     ```bash
+    python3 -m venv .venv
+    source .venv/bin/activate
     pip install -r requirements.txt
     ```
 
@@ -27,7 +29,7 @@ Dangerous Dave is a challenging side-scrolling platform game where the player co
 
 To test the game, run the following command:
 ```bash
-python ddave/game.py
+python game.py
 ```
 
 To test the environment, run the following command:
@@ -37,25 +39,31 @@ python env.py
 
 To train the reinforcement learning agent, run the following command:
 ```bash
-python agent.py
+python agent.py --train --model-type ppo
 ```
 
 ## Reinforcement Learning Algorithms
 
 The repository currently implements the following reinforcement learning algorithms:
 
-- **Deep Q-Network (DQN)**: A deep learning-based reinforcement learning algorithm that uses a neural network to approximate the Q-function.
+- **Proximal Policy Optimization (PPO)**: A policy gradient method that aims to optimize the policy in a stable manner by constraining the update step.
+- **Random Network Distillation (RND)**: An exploration strategy that uses a random neural network to predict the intrinsic reward signal.
 
 ## Structure
 
-- `train.py`: Script for training the reinforcement learning agent.
-- `test.py`: Script for testing the trained agent.
 - `agent.py`: Contains the implementation of the reinforcement learning agent.
 - `model.py`: Defines the neural network architecture used by the agent.
 - `env.py`: Defines the environment for the Dangerous Dave game.
-- `utils.py`: Utility functions for preprocessing game states and other helper functions.
+- `game.py`: Contains the main game loop for the Dangerous Dave game.
+- `ddave/`: Contains the game assets and logic for Dangerous Dave.
 
-## Acknowledgments
+## Acknowledgments and References
 
 - [mwolfart](https://github.com/mwolfart) for the original Dangerous Dave Python clone.
-- OpenAI for providing guidance and resources on reinforcement learning techniques.
+- [Gymnasium](https://gymnasium.farama.org/index.html) for creating the reinforcement learning environment.
+- [OpenAI Spinning Up](https://spinningup.openai.com/en/latest/index.html) for RL resources.
+- [Reinforcement learning with prediction-based rewards](https://openai.com/index/reinforcement-learning-with-prediction-based-rewards) for RND exploration strategy.
+- [Proximal Policy Optimization](https://openai.com/index/openai-baselines-ppo) for understanding PPO algorithm.
+- [Go-Explore: a New Approach for Hard-Exploration Problems](https://www.uber.com/blog/go-explore/) for inspiration on exploration strategies.
+- [CleanRL](https://docs.cleanrl.dev/) for inspiration on PPO and RND implementations.
+- [Stable Baselines3](https://stable-baselines3.readthedocs.io/en/master/index.html) for Vector environment wrapper.

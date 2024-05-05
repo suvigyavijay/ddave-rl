@@ -17,7 +17,6 @@ SEED = int(config['COMMON']['SEED'])
 NUM_ENVS = int(config['COMMON']['NUM_ENVS'])
 NUM_STEPS = int(config['COMMON']['NUM_STEPS'])
 
-
 if __name__ == "__main__":
     argparser = argparse.ArgumentParser()
     argparser.add_argument("--train", action="store_true", help="Train the model")
