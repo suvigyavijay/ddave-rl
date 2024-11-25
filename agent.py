@@ -63,6 +63,8 @@ if __name__ == "__main__":
 
     if args.evaluate:
         # load latest model
-        algo.load_checkpoint()
         algo.evaluate("trained")
+        
+    # close the environment
+    envs.close()
         

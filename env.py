@@ -19,6 +19,7 @@ STICKY_ACTIONS = config.getboolean('GAME', 'STICKY_ACTIONS')
 LOCKED_DOOR = config.getboolean('GAME', 'LOCKED_DOOR')
 STEP_PENALTY = config.getfloat('GAME', 'STEP_PENALTY')
 CURRENT_LEVEL = config.getint('GAME', 'CURRENT_LEVEL')
+NUM_LIVES = config.getint('GAME', 'NUM_LIVES')
 
 PLAYER_RANDOM_SPAWN = config.getboolean('GAME', 'PLAYER_RANDOM_SPAWN')
 
@@ -48,6 +49,7 @@ class DangerousDaveEnv(gym.Env):
         self.current_spawner_id = 0
         self.ended_game = False
         self.current_score = 0
+        self.current_lives = NUM_LIVES
 
         # Initialize clock
         self.clock = pygame.time.Clock()
@@ -102,6 +104,7 @@ class DangerousDaveEnv(gym.Env):
         self.ended_game = False
         self.current_score = 0
         self.episode_clock = 0
+        self.current_lives = NUM_LIVES
         
         self._load_level()
         
@@ -151,7 +154,7 @@ class DangerousDaveEnv(gym.Env):
         # Run one game step
         if not STICKY_ACTIONS:
             self._run_game_step()
-            self.clock.tick()
+            self.clock.tick(200)
         else:
             for _ in range(16):
                 if self.ended_level or self.episode_clock >= EPISODE_TIMESTEPS:
@@ -306,6 +309,10 @@ class DangerousDaveEnv(gym.Env):
         reward = self.GamePlayer.getScore() - self.current_score
         self.current_score = self.GamePlayer.getScore()
         
+        if self.current_lives != self.GamePlayer.getLives():
+            reward = -100
+            self.current_lives = self.GamePlayer.getLives()
+        
         if reward == 0:
             reward = STEP_PENALTY
         
@@ -315,17 +322,56 @@ class DangerousDaveEnv(gym.Env):
 if __name__ == '__main__':
     env = DangerousDaveEnv(env_rep_type='image')
     obs, _ = env.reset()
+    
+    # Initialize the joystick module
+    pygame.joystick.init()
+
+    # Detect and initialize the first joystick
+    if pygame.joystick.get_count() > 0:
+        joystick = pygame.joystick.Joystick(0)
+        joystick.init()
+        print("Joystick initialized:", joystick.get_name())
+    else:
+        joystick = None
+        print("No joystick detected.")
+    
+    
     print("Observation shape: ", obs.shape)
     episode_reward = 0
-    for i in range(10000):
-        print("Step: ", i)
+    
+    i = 0
+    while True:
+        # print("Step: ", i)
+        i += 1
         action = 6
-        # wait for user input
-        event = pygame.event.wait(100)
+        quit = False
+        
+        # merge all events into one
+        for event in pygame.event.get():
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                quit = True
+                break
+            
         # take input from the user from pygame
-        if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+        if quit:
             pygame.quit()
             break
+        elif joystick:
+            x_axis = joystick.get_axis(0)
+            jump = joystick.get_button(0)
+            
+            if x_axis < -0.5:
+                action = 1
+            elif x_axis > 0.5:
+                action = 2
+            
+            if jump:
+                # print("Joystick button pressed: ", event.button)
+                action = 0
+                if x_axis < -0.5:
+                    action = 4
+                elif x_axis > 0.5:
+                    action = 5
         else:
             pressed_keys = pygame.key.get_pressed()
             if pressed_keys[pygame.K_UP] and pressed_keys[pygame.K_LEFT]:
@@ -341,22 +387,6 @@ if __name__ == '__main__':
             elif pressed_keys[pygame.K_DOWN]:
                 action = 3
             
-        # action = env.action_space.sample()
-        # action: up, left, right, down, up+left, up+right, no-op
-        if action == 0:
-            print("Action: Up")
-        elif action == 1:
-            print("Action: Left")
-        elif action == 2:
-            print("Action: Right")
-        elif action == 3:
-            print("Action: Down")
-        elif action == 4:
-            print("Action: Up+Left")
-        elif action == 5:
-            print("Action: Up+Right")
-        elif action == 6:
-            print("Action: No-op")
         obs, reward, done, truncated, info = env.step(action)
         episode_reward += reward
         env.render()

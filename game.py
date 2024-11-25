@@ -18,6 +18,18 @@ def main():
     tileset, ui_tileset = load_game_tiles()
     game_open = True
     
+    # Initialize the joystick module
+    pygame.joystick.init()
+
+    # Detect and initialize the first joystick
+    if pygame.joystick.get_count() > 0:
+        joystick = pygame.joystick.Joystick(0)
+        joystick.init()
+        print("Joystick initialized:", joystick.get_name())
+    else:
+        joystick = None
+        print("No joystick detected.")
+    
     while game_open:
         ##Show title screen
         option = showTitleScreen(game_screen, tileset, ui_tileset)
@@ -90,13 +102,60 @@ def main():
                                 friendly_shot = Level.spawnFriendlyFire(GamePlayer.getSpriteDirection())
                                 friendly_shot_x, friendly_shot_y = player_position_x + GamePlayer.getDirectionX().value * WIDTH_OF_MAP_NODE, player_position_y
 
-                # get keys (movement)
-                pressed_keys = pygame.key.get_pressed()
-                key_map = [0,0,0,0]
-                for i, key in enumerate(movement_keys):
-                    if pressed_keys[key]:
-                        key_map[i] = 1
-                GamePlayer.movementInput(key_map)
+                    # Joystick handling
+                    if joystick:
+                        # Get joystick axes for movement
+                        x_axis = joystick.get_axis(0)  # Left stick horizontal
+                        # y_axis = joystick.get_axis(1)  # Left stick vertical
+                        y_axis = 0.0  # Stop vertical movement
+                        
+                        if event.type == pygame.JOYBUTTONUP and joystick:
+                            if event.button == 0:  # "A" button
+                                y_axis = 0.0  # Stop vertical movement
+
+                        # Threshold for movement
+                        threshold = 0.5
+
+                        # Check if joystick has returned to neutral
+                        if abs(x_axis) < threshold:
+                            if GamePlayer.getCurrentState() in [STATE.WALK, STATE.FLY, STATE.JUMP, STATE.CLIMB]:
+                                GamePlayer.clearXMovement()
+                        if abs(y_axis) < threshold:
+                            if GamePlayer.getCurrentState() in [STATE.FLY, STATE.CLIMB]:
+                                GamePlayer.setVelocityY(0)
+
+                    # get keys (movement)
+                    pressed_keys = pygame.key.get_pressed()
+                    key_map = [0,0,0,0]
+                    
+                    # Process joystick input if a joystick is connected
+                    if joystick:
+                        # Get joystick axes (assuming standard Xbox layout)
+                        x_axis = joystick.get_axis(0)  # Left stick horizontal
+                        # y_axis = joystick.get_axis(1)  # Left stick vertical
+
+                        # Threshold to determine significant movement
+                        threshold = 0.5
+
+                        # Map joystick input to movement keys
+                        # if y_axis < -threshold:  # Up
+                        #     key_map[0] = 1
+                        if x_axis < -threshold:  # Left
+                            key_map[1] = 1
+                        if x_axis > threshold:  # Right
+                            key_map[2] = 1
+                        # if y_axis > threshold:  # Down
+                        #     key_map[3] = 1
+                        if event.type == pygame.JOYBUTTONDOWN and joystick:
+                            if event.button == 0:  # "A" button
+                                key_map[0] = 1  # Up
+
+                    # Process keyboard input (fallback or additional support)
+                    for i, key in enumerate(movement_keys):
+                        if pressed_keys[key]:
+                            key_map[i] = 1
+                    
+                    GamePlayer.movementInput(key_map)
 
                 # update the player position in the level and treat collisions
                 if GamePlayer.getCurrentState() != STATE.DESTROY:

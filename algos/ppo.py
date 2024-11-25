@@ -248,6 +248,7 @@ class PPO:
             obs, reward, done, _ = self.eval_env.step(action.cpu().numpy()[:1])
             obs = torch.Tensor(np.repeat(obs, self.num_envs, axis=0)).to(device)
             episode_reward += reward[0]
+            self.eval_env.render()
             
             # save the current frame
             frame_image = (pygame.display.get_surface())

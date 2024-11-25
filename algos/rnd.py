@@ -190,7 +190,7 @@ class RND:
         np.save(f"{self.reward_dir}/rewards.npy", rewards)
         
     def load_checkpoint(self, path):
-        checkpoint = torch.load(path)
+        checkpoint = torch.load(path, map_location=torch.device('mps'))
         self.agent.load_state_dict(checkpoint["agent"])
         self.rnd_model.load_state_dict(checkpoint["rnd_model"])
         self.optimizer.load_state_dict(checkpoint["optimizer"])
@@ -422,40 +422,100 @@ class RND:
                 self.save_rewards(episode_rewards)
                 print("Evaluating the model...")
                 self.evaluate(update)
-
-            # if avg_returns and np.average(avg_returns) > 360:
-            #     print("Early Stopping...")
-            #     print("Saving the model and rewards...")
-            #     self.save_checkpoint(update)
-            #     self.save_rewards(episode_rewards)
-            #     print("Evaluating the model...")
-            #     self.evaluate(update)
-            #     break
                 
     def evaluate(self, update):
+        
+        # Initialize the joystick module
+        pygame.joystick.init()
+
+        # Detect and initialize the first joystick
+        if pygame.joystick.get_count() > 0:
+            joystick = pygame.joystick.Joystick(0)
+            joystick.init()
+            print("Joystick initialized:", joystick.get_name())
+        else:
+            joystick = None
+            print("No joystick detected.")
+        
+        
         episode_reward = 0
         done = False
         
         obs = self.eval_env.reset()
         obs = torch.Tensor(np.repeat(obs, self.num_envs, axis=0)).to(device)
-        tmp_frame_dir = tempfile.mkdtemp()
+        # tmp_frame_dir = tempfile.mkdtemp()
         frame_number = 0
         
         while not done:
-            action, _, _, _, _ = self.agent.get_action_and_value(obs)
-            obs, reward, done, _ = self.eval_env.step(action.cpu().numpy()[:1])
+            action = 6
+            quit = False
+        
+            # merge all events into one
+            for event in pygame.event.get():
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                    quit = True
+                    break
+                
+            # take input from the user from pygame
+            if quit:
+                pygame.quit()
+                break
+            
+            elif joystick:
+                x_axis = joystick.get_axis(0)
+                jump = joystick.get_button(0)
+                
+                if x_axis < -0.5:
+                    action = 1
+                elif x_axis > 0.5:
+                    action = 2
+                
+                if jump:
+                    # print("Joystick button pressed: ", event.button)
+                    action = 0
+                    if x_axis < -0.5:
+                        action = 4
+                    elif x_axis > 0.5:
+                        action = 5
+                        
+                if joystick.get_button(1):
+                    actions, log_probs, _, _, _ = self.agent.get_action_and_value(obs)
+                    # select action with highest probability
+                    action = actions[torch.argmax(log_probs).cpu().numpy()]
+                
+            else:
+                pressed_keys = pygame.key.get_pressed()
+                if pressed_keys[pygame.K_UP] and pressed_keys[pygame.K_LEFT]:
+                    action = 4
+                elif pressed_keys[pygame.K_UP] and pressed_keys[pygame.K_RIGHT]:
+                    action = 5
+                elif pressed_keys[pygame.K_UP]:
+                    action = 0
+                elif pressed_keys[pygame.K_LEFT]:
+                    action = 1
+                elif pressed_keys[pygame.K_RIGHT]:
+                    action = 2
+                elif pressed_keys[pygame.K_DOWN]:
+                    action = 3
+                elif pressed_keys[pygame.K_SPACE]:
+                    actions, log_probs, _, _, _ = self.agent.get_action_and_value(obs)
+                    # select action with highest probability
+                    action = actions[torch.argmax(log_probs).cpu().numpy()]
+            
+            obs, reward, done, _ = self.eval_env.step([action])
             obs = torch.Tensor(np.repeat(obs, self.num_envs, axis=0)).to(device)
             episode_reward += reward[0]
+            self.eval_env.render()
             
             # save the current frame
-            frame_image = (pygame.display.get_surface())
-            pygame.image.save(frame_image, f"{tmp_frame_dir}/frame_{frame_number:05d}.png")
+            # frame_image = (pygame.display.get_surface())
+            # pygame.image.save(frame_image, f"{tmp_frame_dir}/frame_{frame_number:05d}.png")
             
             frame_number += 1
             
         print(f"Reward: {episode_reward}")
         # create a video from the frames
-        os.system(f"ffmpeg -framerate 60 -i {tmp_frame_dir}/frame_%05d.png -c:v libx264 -profile:v high -crf 20 -pix_fmt yuv420p {self.reward_dir}/episode_{update}_{episode_reward}.mp4")
+        # os.system(f"ffmpeg -framerate 60 -i {tmp_frame_dir}/frame_%05d.png -c:v libx264 -profile:v high -crf 20 -pix_fmt yuv420p {self.reward_dir}/episode_{update}_{episode_reward}.mp4")
         
-        shutil.rmtree(tmp_frame_dir)
+        # shutil.rmtree(tmp_frame_dir)
 
