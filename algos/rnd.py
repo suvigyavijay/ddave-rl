@@ -19,9 +19,10 @@ from gymnasium.wrappers.normalize import RunningMeanStd
 config = configparser.ConfigParser()
 config.read('algo.cfg')
 
-torch.backends.cudnn.deterministic = True
+torch.use_deterministic_algorithms(True)
+torch.set_default_dtype(torch.float32)
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
 
 
 
@@ -261,12 +262,12 @@ class RND:
 
                 # execute the game and log data.
                 next_obs, reward, done, info = self.envs.step(action.cpu().numpy())
-                rewards[step] = torch.tensor(reward).to(device).view(-1)
+                rewards[step] = torch.tensor(reward, dtype=torch.float32).to(device).view(-1)
                 next_obs, next_done = torch.Tensor(next_obs).to(device), torch.Tensor(done).to(device)
                 rnd_next_obs = (
                     (
-                        (next_obs[:, 3, :, :].reshape(self.num_envs, 1, 96, 60) - torch.from_numpy(obs_rms.mean).to(device))
-                        / torch.sqrt(torch.from_numpy(obs_rms.var).to(device))
+                        (next_obs[:, 3, :, :].reshape(self.num_envs, 1, 96, 60) - torch.from_numpy(obs_rms.mean.astype(np.float32)).to(device))
+                        / torch.sqrt(torch.from_numpy(obs_rms.var.astype(np.float32)).to(device))
                     ).clip(-5, 5)
                 ).float()
                 target_next_feature = self.rnd_model.target(rnd_next_obs)
@@ -342,8 +343,8 @@ class RND:
 
             rnd_next_obs = (
                 (
-                    (b_obs[:, 3, :, :].reshape(-1, 1, 96, 60) - torch.from_numpy(obs_rms.mean).to(device))
-                    / torch.sqrt(torch.from_numpy(obs_rms.var).to(device))
+                    (b_obs[:, 3, :, :].reshape(-1, 1, 96, 60) - torch.from_numpy(obs_rms.mean.astype(np.float32)).to(device))
+                    / torch.sqrt(torch.from_numpy(obs_rms.var.astype(np.float32)).to(device))
                 ).clip(-5, 5)
             ).float()
 
