@@ -3,7 +3,11 @@ __pycache__/
 *.py[cod]
 *$py.class
 .DS_Store
+
+# Custom data
 .vscode/
+checkpoint/
+rewards/
 
 # C extensions
 *.so

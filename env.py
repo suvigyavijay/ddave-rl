@@ -2,6 +2,7 @@ import gymnasium as gym
 from gymnasium import spaces
 import pygame
 from ddave.utils import *
+import ddave.utils
 from ddave.helper import *
 import numpy as np
 import configparser
@@ -62,7 +63,7 @@ class DangerousDaveEnv(gym.Env):
         self.player_position_x, self.player_position_y = self.Level.initPlayerPositions(self.current_spawner_id, self.GamePlayer)
         spawner_pos_x = self.Level.getPlayerSpawnerPosition(self.current_spawner_id)[0]
         self.game_screen.setXPosition(spawner_pos_x - 10, self.Level.getWidth())
-        if PLAYER_RANDOM_SPAWN:
+        if PLAYER_RANDOM_SPAWN and self.current_level_number == 1 and random() < 0.7:
             self.player_position_x, self.player_position_y = self.Level.getRandomPlayerSpawnerPosition()
 
         # UI Inits
@@ -99,6 +100,11 @@ class DangerousDaveEnv(gym.Env):
 
     def set_sticky_actions(self, sticky):
         self.sticky = sticky
+        
+    def toggle_random_spawn(self):
+        ddave.utils.TROPHY_RANDOM_SPAWN = not ddave.utils.TROPHY_RANDOM_SPAWN
+        globals()['PLAYER_RANDOM_SPAWN'] = not globals()['PLAYER_RANDOM_SPAWN']
+        globals()['TROPHY_RANDOM_SPAWN'] = not globals()['TROPHY_RANDOM_SPAWN']
 
     def reset(self, **kwargs):
         # Reset player, level, and game state
@@ -131,7 +137,7 @@ class DangerousDaveEnv(gym.Env):
         self.player_position_x, self.player_position_y = self.Level.initPlayerPositions(self.current_spawner_id, self.GamePlayer)
         spawner_pos_x = self.Level.getPlayerSpawnerPosition(self.current_spawner_id)[0]
         self.game_screen.setXPosition(spawner_pos_x - 10, self.Level.getWidth())
-        if PLAYER_RANDOM_SPAWN:
+        if PLAYER_RANDOM_SPAWN and self.current_level_number == 1 and random() < 0.7:
             self.player_position_x, self.player_position_y = self.Level.getRandomPlayerSpawnerPosition()
 
         # Level processing controller

@@ -262,8 +262,8 @@ class RND:
         )
         self.checkpoint_dir = f"checkpoint/{model_name}"
         self.reward_dir = f"rewards/{model_name}"
-        # os.makedirs(self.checkpoint_dir, exist_ok=True)
-        # os.makedirs(self.reward_dir, exist_ok=True)
+        os.makedirs(self.checkpoint_dir, exist_ok=True)
+        os.makedirs(self.reward_dir, exist_ok=True)
         
     def save_checkpoint(self, name):
         torch.save(
@@ -527,88 +527,96 @@ class RND:
             joystick = None
             print("No joystick detected.")
         
-        
-        episode_reward = 0
-        done = False
-        
-        obs = self.eval_env.reset()
-        obs = torch.Tensor(np.repeat(obs, self.num_envs, axis=0)).to(device)
-        # tmp_frame_dir = tempfile.mkdtemp()
-        frame_number = 0
-        
-        while not done:
-            action = 6
-            quit = False
-        
-            # merge all events into one
-            for event in pygame.event.get():
-                if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-                    quit = True
+        while True:
+            episode_reward = 0
+            done = False
+            
+            obs = self.eval_env.reset()
+            obs = torch.Tensor(np.repeat(obs, self.num_envs, axis=0)).to(device)
+            # tmp_frame_dir = tempfile.mkdtemp()
+            frame_number = 0
+            
+            while not done:
+                action = 6
+                quit = False
+            
+                # merge all events into one
+                for event in pygame.event.get():
+                    if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                        quit = True
+                        break
+                    
+                    
+                    if joystick and event.type == pygame.JOYBUTTONDOWN and event.button == 3:
+                        quit = True
+                        break
+                    
+                # take input from the user from pygame
+                if quit:
+                    done = True
                     break
                 
-            # take input from the user from pygame
-            if quit:
-                pygame.quit()
-                break
-            
-            elif joystick:
-                x_axis = joystick.get_axis(0)
-                jump = joystick.get_button(0)
-                
-                if x_axis < -0.5:
-                    action = 1
-                elif x_axis > 0.5:
-                    action = 2
-                
-                if jump:
-                    # print("Joystick button pressed: ", event.button)
-                    action = 0
+                elif joystick:
+                    x_axis = joystick.get_axis(0)
+                    jump = joystick.get_button(0)
+                    
                     if x_axis < -0.5:
-                        action = 4
+                        action = 1
                     elif x_axis > 0.5:
-                        action = 5
+                        action = 2
+                    
+                    if jump:
+                        # print("Joystick button pressed: ", event.button)
+                        action = 0
+                        if x_axis < -0.5:
+                            action = 4
+                        elif x_axis > 0.5:
+                            action = 5
+                            
+                    if joystick.get_button(1):
+                        actions, log_probs, _, _, _ = self.agent.get_action_and_value(obs)
+                        # select action with highest probability
+                        action = actions[torch.argmax(log_probs).cpu().numpy()]
+                        self.eval_env.env_method("set_sticky_actions", True)
                         
-                if joystick.get_button(1):
-                    actions, log_probs, _, _, _ = self.agent.get_action_and_value(obs)
-                    # select action with highest probability
-                    action = actions[torch.argmax(log_probs).cpu().numpy()]
+                    if joystick.get_button(2):
+                        self.eval_env.env_method("toggle_random_spawn")
+                    
+                else:
+                    pressed_keys = pygame.key.get_pressed()
+                    if pressed_keys[pygame.K_UP] and pressed_keys[pygame.K_LEFT]:
+                        action = 4
+                    elif pressed_keys[pygame.K_UP] and pressed_keys[pygame.K_RIGHT]:
+                        action = 5
+                    elif pressed_keys[pygame.K_UP]:
+                        action = 0
+                    elif pressed_keys[pygame.K_LEFT]:
+                        action = 1
+                    elif pressed_keys[pygame.K_RIGHT]:
+                        action = 2
+                    elif pressed_keys[pygame.K_DOWN]:
+                        action = 3
+                    elif pressed_keys[pygame.K_SPACE]:
+                        actions, log_probs, _, _, _ = self.agent.get_action_and_value(obs)
+                        # select action with highest probability
+                        action = actions[torch.argmax(log_probs).cpu().numpy()]
+                        self.eval_env.env_method("set_sticky_actions", True)
                 
-            else:
-                pressed_keys = pygame.key.get_pressed()
-                if pressed_keys[pygame.K_UP] and pressed_keys[pygame.K_LEFT]:
-                    action = 4
-                elif pressed_keys[pygame.K_UP] and pressed_keys[pygame.K_RIGHT]:
-                    action = 5
-                elif pressed_keys[pygame.K_UP]:
-                    action = 0
-                elif pressed_keys[pygame.K_LEFT]:
-                    action = 1
-                elif pressed_keys[pygame.K_RIGHT]:
-                    action = 2
-                elif pressed_keys[pygame.K_DOWN]:
-                    action = 3
-                elif pressed_keys[pygame.K_SPACE]:
-                    actions, log_probs, _, _, _ = self.agent.get_action_and_value(obs)
-                    # select action with highest probability
-                    action = actions[torch.argmax(log_probs).cpu().numpy()]
-                    self.eval_env.env_method("set_sticky_actions", True)
+                obs, reward, done, _ = self.eval_env.step([action])
+                self.eval_env.env_method("set_sticky_actions", False)
+                obs = torch.Tensor(np.repeat(obs, self.num_envs, axis=0)).to(device)
+                episode_reward += reward[0]
+                self.eval_env.render()
+                
+                # save the current frame
+                # frame_image = (pygame.display.get_surface())
+                # pygame.image.save(frame_image, f"{tmp_frame_dir}/frame_{frame_number:05d}.png")
+                
+                
+            print(f"Reward: {episode_reward}")
+            # create a video from the frames
+            # os.system(f"ffmpeg -framerate 60 -i {tmp_frame_dir}/frame_%05d.png -c:v libx264 -profile:v high -crf 20 -pix_fmt yuv420p {self.reward_dir}/episode_{update}_{episode_reward}.mp4")
             
-            obs, reward, done, _ = self.eval_env.step([action])
-            self.eval_env.env_method("set_sticky_actions", False)
-            obs = torch.Tensor(np.repeat(obs, self.num_envs, axis=0)).to(device)
-            episode_reward += reward[0]
-            self.eval_env.render()
-            
-            # save the current frame
-            # frame_image = (pygame.display.get_surface())
-            # pygame.image.save(frame_image, f"{tmp_frame_dir}/frame_{frame_number:05d}.png")
-            
-            frame_number += 1
-            
-        print(f"Reward: {episode_reward}")
-        # create a video from the frames
-        # os.system(f"ffmpeg -framerate 60 -i {tmp_frame_dir}/frame_%05d.png -c:v libx264 -profile:v high -crf 20 -pix_fmt yuv420p {self.reward_dir}/episode_{update}_{episode_reward}.mp4")
-        
-        # shutil.rmtree(tmp_frame_dir)
+            # shutil.rmtree(tmp_frame_dir)
         self.agent.train()
 

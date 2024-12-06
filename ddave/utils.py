@@ -36,7 +36,6 @@ ENABLE_ITEMS = config.getboolean('GAME', 'ENABLE_ITEMS')
 LOCKED_DOOR = config.getboolean('GAME', 'LOCKED_DOOR')
 GRIDWORLD_MECHANICS = config.getboolean('GAME', 'GRIDWORLD_MECHANICS')
 
-PLAYER_RANDOM_SPAWN = config.getboolean('GAME', 'PLAYER_RANDOM_SPAWN')
 TROPHY_RANDOM_SPAWN = config.getboolean('GAME', 'TROPHY_RANDOM_SPAWN')
 
 class DIRECTION(Enum):
@@ -116,7 +115,7 @@ class Screen(object):
         self.height = height
         self.x_pos = 0      
         self.font = pygame.font.SysFont("Consolas", 8 * TILE_SCALE_FACTOR)
-        self.display = pygame.display.set_mode((width, height))
+        self.display = pygame.display.set_mode((width, height), pygame.HWSURFACE | pygame.DOUBLEBUF | pygame.RESIZABLE)
         self.display.fill((0, 0, 0))  
         
     '''
@@ -521,8 +520,6 @@ class Map(object):
         item1pos = choice(item1pos)
         item2pos = choice(item2pos)
         
-        print("Switching positions of " + item1 + " from " + str(item1pos) + " and " + item2 + " from " + str(item2pos))
-        
         # Switch positions
         self.textMatrix[item1pos[0]][item1pos[1]], self.textMatrix[item2pos[0]][item2pos[1]] = self.textMatrix[item2pos[0]][item2pos[1]], self.textMatrix[item1pos[0]][item1pos[1]]
 
@@ -557,9 +554,10 @@ class Map(object):
                 self.textMatrix[y][x] = text_tile
                 x += 1
                 
-        if TROPHY_RANDOM_SPAWN:
-            item = "I" + str(randint(0, 2))
-            self.switchItemPositions("TR", item)
+        if TROPHY_RANDOM_SPAWN and level_number == 1:
+            item = "I1"
+            if random() < 0.7:
+                self.switchItemPositions("TR", item)
         
         for y, line in enumerate(self.textMatrix):
             for x, col in enumerate(line):

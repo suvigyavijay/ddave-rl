@@ -38,7 +38,7 @@ if __name__ == "__main__":
         model_name = "{}_ddave_{}".format(args.model_type, checkpoint_timestamp)
         
     # Create the DangerousDaveEnv environment
-    envs = SubprocVecEnv([lambda : FrameStack(DangerousDaveEnv(env_rep_type="image"), 4) for _ in range(NUM_ENVS)])
+    envs = DummyVecEnv([lambda : FrameStack(DangerousDaveEnv(env_rep_type="image"), 4) for _ in range(NUM_ENVS)])
     eval_env = DummyVecEnv([lambda : FrameStack(DangerousDaveEnv(env_rep_type="image"), 4)])
 
     envs.num_envs = NUM_ENVS
