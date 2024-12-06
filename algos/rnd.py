@@ -527,7 +527,10 @@ class RND:
             joystick = None
             print("No joystick detected.")
         
+        exit = False
         while True:
+            if exit:
+                break
             episode_reward = 0
             done = False
             
@@ -546,13 +549,20 @@ class RND:
                         quit = True
                         break
                     
+                    if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_q):
+                        exit = True
+                        break
                     
                     if joystick and event.type == pygame.JOYBUTTONDOWN and event.button == 3:
                         quit = True
                         break
                     
+                    if joystick and event.type == pygame.JOYBUTTONDOWN and event.button in [4, 5]:
+                        exit = True
+                        break
+                    
                 # take input from the user from pygame
-                if quit:
+                if quit or exit:
                     done = True
                     break
                 

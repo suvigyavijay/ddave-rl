@@ -115,7 +115,7 @@ class Screen(object):
         self.height = height
         self.x_pos = 0      
         self.font = pygame.font.SysFont("Consolas", 8 * TILE_SCALE_FACTOR)
-        self.display = pygame.display.set_mode((width, height), pygame.HWSURFACE | pygame.DOUBLEBUF | pygame.RESIZABLE)
+        self.display = pygame.display.set_mode((width, height), pygame.HWSURFACE | pygame.DOUBLEBUF | pygame.RESIZABLE | pygame.FULLSCREEN)
         self.display.fill((0, 0, 0))  
         
     '''
