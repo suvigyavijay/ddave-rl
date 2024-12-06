@@ -24,24 +24,89 @@ torch.backends.cudnn.deterministic = True
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
+class MultiHeadAttention(nn.Module):
+    def __init__(self, input_dim, num_heads, dropout=0.1):
+        super().__init__()
+        self.num_heads = num_heads
+        self.head_dim = input_dim // num_heads
+        assert input_dim % num_heads == 0, "Input dimension must be divisible by the number of heads."
+
+        # Linear layers for query, key, and value
+        self.query = nn.Linear(input_dim, input_dim)
+        self.key = nn.Linear(input_dim, input_dim)
+        self.value = nn.Linear(input_dim, input_dim)
+
+        # Output linear layer
+        self.fc_out = nn.Linear(input_dim, input_dim)
+
+        # Dropout and LayerNorm
+        self.dropout = nn.Dropout(dropout)
+        self.layer_norm = nn.LayerNorm(input_dim)
+
+        # Scaling factor for attention scores
+        self.scale = self.head_dim ** 0.5
+
+    def forward(self, x):
+        batch_size, seq_len, input_dim = x.shape
+
+        # Linear projections for query, key, and value
+        q = self.query(x)  # (Batch, Seq, Input_Dim)
+        k = self.key(x)    # (Batch, Seq, Input_Dim)
+        v = self.value(x)  # (Batch, Seq, Input_Dim)
+
+        # Reshape for multi-head attention: (Batch, Num_Heads, Seq, Head_Dim)
+        q = q.view(batch_size, seq_len, self.num_heads, self.head_dim).permute(0, 2, 1, 3)
+        k = k.view(batch_size, seq_len, self.num_heads, self.head_dim).permute(0, 2, 1, 3)
+        v = v.view(batch_size, seq_len, self.num_heads, self.head_dim).permute(0, 2, 1, 3)
+
+        # Scaled dot-product attention
+        scores = torch.matmul(q, k.transpose(-2, -1)) / self.scale  # (Batch, Num_Heads, Seq, Seq)
+        attention_weights = torch.softmax(scores, dim=-1)          # Normalize scores
+        attention_weights = self.dropout(attention_weights)        # Apply dropout for stability
+
+        # Compute weighted sum of values
+        attended_features = torch.matmul(attention_weights, v)  # (Batch, Num_Heads, Seq, Head_Dim)
+
+        # Concatenate heads and project back to input_dim
+        attended_features = attended_features.permute(0, 2, 1, 3).contiguous()
+        attended_features = attended_features.view(batch_size, seq_len, input_dim)
+
+        # Apply residual connection and LayerNorm
+        return self.layer_norm(attended_features + x)
+
 
 class Agent(nn.Module):
     def __init__(self, envs):
         super().__init__()
-        self.network = nn.Sequential(
+        # CNN feature extractor with BatchNorm
+        self.cnn = nn.Sequential(
             layer_init(nn.Conv2d(4, 32, 8, stride=4)),
+            nn.BatchNorm2d(32),  # BatchNorm for stabilization
             nn.ReLU(),
             layer_init(nn.Conv2d(32, 64, 4, stride=2)),
+            nn.BatchNorm2d(64),
             nn.ReLU(),
             layer_init(nn.Conv2d(64, 64, 3, stride=1)),
+            nn.BatchNorm2d(64),
             nn.ReLU(),
-            nn.Flatten(),
+        )
+
+        # Multi-head attention module
+        self.attention = MultiHeadAttention(input_dim=64, num_heads=4)
+
+        # Flatten and fully connected layers
+        self.flatten = nn.Flatten()
+        self.fc = nn.Sequential(
             layer_init(nn.Linear(64 * 8 * 4, 256)),
             nn.ReLU(),
             layer_init(nn.Linear(256, 448)),
             nn.ReLU(),
         )
+
+        # Extra layer for additional features
         self.extra_layer = nn.Sequential(layer_init(nn.Linear(448, 448), std=0.1), nn.ReLU())
+
+        # Actor and Critic networks
         self.actor = nn.Sequential(
             layer_init(nn.Linear(448, 448), std=0.01),
             nn.ReLU(),
@@ -51,9 +116,23 @@ class Agent(nn.Module):
         self.critic_int = layer_init(nn.Linear(448, 1), std=0.01)
 
     def get_action_and_value(self, x, action=None):
-        hidden = self.network(x / 255.0)
+        # CNN feature extraction
+        cnn_features = self.cnn(x / 255.0)  # Normalize inputs
+
+        # Apply multi-head attention
+        batch_size, channels, height, width = cnn_features.size()
+        reshaped = cnn_features.view(batch_size, channels, -1).permute(0, 2, 1)  # (Batch, Seq, Dim)
+        attended_features = self.attention(reshaped)  # (Batch, Seq, Dim)
+        reshaped_back = attended_features.permute(0, 2, 1).view(batch_size, channels, height, width)
+
+        # Flatten and pass through fully connected layers
+        hidden = self.fc(self.flatten(reshaped_back))
         logits = self.actor(hidden)
+
+        # Action probabilities
         probs = Categorical(logits=logits)
+
+        # Process extra layer for critics
         features = self.extra_layer(hidden)
         if action is None:
             action = probs.sample()
@@ -66,7 +145,17 @@ class Agent(nn.Module):
         )
 
     def get_value(self, x):
-        hidden = self.network(x / 255.0)
+        # CNN feature extraction
+        cnn_features = self.cnn(x / 255.0)
+
+        # Apply multi-head attention
+        batch_size, channels, height, width = cnn_features.size()
+        reshaped = cnn_features.view(batch_size, channels, -1).permute(0, 2, 1)  # (Batch, Seq, Dim)
+        attended_features = self.attention(reshaped)  # (Batch, Seq, Dim)
+        reshaped_back = attended_features.permute(0, 2, 1).view(batch_size, channels, height, width)
+
+        # Flatten and pass through fully connected layers
+        hidden = self.fc(self.flatten(reshaped_back))
         features = self.extra_layer(hidden)
         return self.critic_ext(features + hidden), self.critic_int(features + hidden)
 
@@ -173,8 +262,8 @@ class RND:
         )
         self.checkpoint_dir = f"checkpoint/{model_name}"
         self.reward_dir = f"rewards/{model_name}"
-        os.makedirs(self.checkpoint_dir, exist_ok=True)
-        os.makedirs(self.reward_dir, exist_ok=True)
+        # os.makedirs(self.checkpoint_dir, exist_ok=True)
+        # os.makedirs(self.reward_dir, exist_ok=True)
         
     def save_checkpoint(self, name):
         torch.save(
@@ -424,6 +513,7 @@ class RND:
                 self.evaluate(update)
                 
     def evaluate(self, update):
+        self.agent.eval()
         
         # Initialize the joystick module
         pygame.joystick.init()
@@ -501,8 +591,10 @@ class RND:
                     actions, log_probs, _, _, _ = self.agent.get_action_and_value(obs)
                     # select action with highest probability
                     action = actions[torch.argmax(log_probs).cpu().numpy()]
+                    self.eval_env.env_method("set_sticky_actions", True)
             
             obs, reward, done, _ = self.eval_env.step([action])
+            self.eval_env.env_method("set_sticky_actions", False)
             obs = torch.Tensor(np.repeat(obs, self.num_envs, axis=0)).to(device)
             episode_reward += reward[0]
             self.eval_env.render()
@@ -518,4 +610,5 @@ class RND:
         # os.system(f"ffmpeg -framerate 60 -i {tmp_frame_dir}/frame_%05d.png -c:v libx264 -profile:v high -crf 20 -pix_fmt yuv420p {self.reward_dir}/episode_{update}_{episode_reward}.mp4")
         
         # shutil.rmtree(tmp_frame_dir)
+        self.agent.train()
 

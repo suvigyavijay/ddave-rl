@@ -94,7 +94,11 @@ class DangerousDaveEnv(gym.Env):
             self.label_enc  = LabelEncoder()
             self.label_enc.fit(all_possible_labels)
             self.unqiue_set = set()
+            
+        self.sticky = False
 
+    def set_sticky_actions(self, sticky):
+        self.sticky = sticky
 
     def reset(self, **kwargs):
         # Reset player, level, and game state
@@ -152,7 +156,7 @@ class DangerousDaveEnv(gym.Env):
         self.GamePlayer.movementInput(key_map)
 
         # Run one game step
-        if not STICKY_ACTIONS:
+        if not (STICKY_ACTIONS or self.sticky):
             self._run_game_step()
             self.clock.tick(200)
         else:
@@ -160,7 +164,7 @@ class DangerousDaveEnv(gym.Env):
                 if self.ended_level or self.episode_clock >= EPISODE_TIMESTEPS:
                     break
                 self._run_game_step()
-                self.clock.tick()
+            self.clock.tick(16)
 
         self.episode_clock += 1
 
